@@ -1,9 +1,209 @@
 enum CMD {
-    M = 1,
-    L = 2,
-    C = 3,
-    Q = 4,
-    A = 5,
-    Z = 6,
-    R = 7
+    M = 1, // moveTo
+    L = 2, // lineTo
+    C = 3, // 三次贝塞尔
+    Q = 4, // 二次贝塞尔
+    A = 5, // arc
+    Z = 6, // close
+    R = 7 // rect
+}
+
+export class Path {
+    static CMD = CMD;
+
+    lineDash: number[] = [];
+
+    private data: Float32Array;
+    private _len:number = 0;
+
+    private _ctx: CanvasRenderingContext2D;
+
+    get context() {
+        return this._ctx;
+    }
+
+    get len(){
+        return this._len;
+    }
+
+    beginPath(ctx: CanvasRenderingContext2D){
+        this._ctx = ctx;
+        this._len = 0;
+
+        if(ctx){
+            ctx.beginPath();
+            ctx.setLineDash(this.lineDash);
+        }
+
+        return this;
+    }
+
+    moveTo (x: number, y: number) {
+        this.addData(CMD.M, x, y);
+        this._ctx && this._ctx.moveTo(x, y);
+
+        return this;
+    }
+
+    lineTo(x: number, y: number) {
+        this.addData(CMD.L, x, y);
+        this._ctx && this._ctx.lineTo(x, y);
+
+        return this;
+    }
+
+    //  三次贝塞尔曲线
+    bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
+        this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
+
+        this._ctx && this._ctx.bezierCurveTo(x1, y1, x2, y2, x3, y3);
+
+        return this;
+    }
+
+    //  二次贝塞尔曲线
+    quadraticCurveTo(x1, y1, x2, y2) {
+        this.addData(CMD.Q, x1, y1, x2, y2);
+
+        this._ctx && this._ctx.quadraticCurveTo(x1, y1, x2, y2);
+
+        return this;
+    }
+
+    /**
+     * @param  anticlockwise // 规定应该逆时针还是顺时针绘图。1 = 顺时针，0 = 逆时针。
+     */
+    arc (
+        c: number[],
+        r: number[],
+        startAngle: number,
+        endAngle: number,
+        rotation: number = 0,
+        anticlockwise: 0 | 1 = 0
+    ) {
+        this.addData(CMD.A, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise);
+
+        if(this._ctx){
+            this._arc(this._ctx, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise)
+        }
+
+        return this;
+    }
+
+    rect (x: number, y: number, w: number, h: number) {
+        this._ctx && this._ctx.rect(x, y, w, h);
+        this.addData(CMD.R, x, y, w, h);
+
+        return this;
+    }
+
+    closePath() {
+        this.addData(CMD.Z);
+        this._ctx && this._ctx.closePath();
+
+        return this;
+    }
+
+    /**
+     * 直接设置 Path 数据
+     */
+    setData(data: number[]) {
+        const len = this._len = data.length;
+
+        if(!this.data || this.data.length !== len){
+            this.data = new Float32Array(len);
+        }
+        for(let i=0; i<len; i++){
+            this.data[i] = data[i];
+        }
+
+        return this;
+    }
+
+    /**
+     * 添加子路径
+     */
+    appendPath(path: Path | Path[]) {
+        if(!Array.isArray(path)) path = [path];
+
+        const appendSize = path.reduce((a, b) => a + b.len, 0);
+        this.data = new Float32Array(this._len + appendSize);
+
+        path.forEach(append => {
+            for(let i=0; i<append.data.length; i++){
+                this.data[this._len++] = append.data[i];
+            }
+        });
+
+        return this;
+    }
+
+    getBoundingRect() {
+
+    }
+
+    rebuildPath(ctx: CanvasRenderingContext2D) {
+
+    }
+
+    /**
+     * 填充 Path 数据。
+     * 尽量复用而不申明新的数组。大部分图形重绘的指令数据长度都是不变的。
+     */
+    private addData(...arg: number[]) {
+        let data:number[] | Float32Array = this.data;
+
+        if(!data || this._len + arg.length > data.length){
+            data = this._expandData();
+        }
+        arg.forEach(v => data[this._len++] = v);
+        this.toStatic(data);
+
+        return this;
+    }
+
+    private _expandData() {
+        const newData = [];
+        for(let i = 0; i < this._len; i++){
+            newData[i] = this.data[i];
+        }
+
+        return newData;
+    }
+
+    private toStatic(data: number[] | Float32Array) {
+        if(Array.isArray(data)){
+            data.length = this._len;
+            this.data = new Float32Array(data);
+        }
+    }
+
+    // 画一个圆弧
+    private _arc(
+        ctx: CanvasRenderingContext2D,
+        cx: number,
+        cy: number,
+        rx: number,
+        ry: number,
+        startAngle: number,
+        endAngle: number,
+        rotation: number = 0,
+        anticlockwise: number = 0,
+    ){
+        if(Math.abs(rx - ry) > 1e-3){ // 椭圆
+            ctx.save();
+
+            const scaleX = rx > ry ? 1 : rx / ry;
+            const scaleY = rx > ry ? ry / rx : 1;
+
+            ctx.translate(cx, cy);
+            ctx.rotate(rotation);
+            ctx.scale(scaleX, scaleY);
+            ctx.arc(0, 0, Math.max(rx, ry), startAngle, endAngle, !anticlockwise);
+
+            ctx.restore();
+        } else {
+            ctx.arc(cx, cy, rx, startAngle, endAngle, !anticlockwise);
+        }
+    }
 }
