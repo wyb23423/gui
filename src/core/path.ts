@@ -1,3 +1,12 @@
+/**
+ *
+ */
+
+import { Vector2 } from "../lib/vector";
+import * as bbox from '../lib/bbox';
+import { BoundingRect } from "./BoundingRect";
+
+// =====================================
 enum CMD {
     M = 1, // moveTo
     L = 2, // lineTo
@@ -52,7 +61,7 @@ export class Path {
         return this;
     }
 
-    //  三次贝塞尔曲线
+    // 四阶贝塞尔曲线
     bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
         this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
 
@@ -61,7 +70,7 @@ export class Path {
         return this;
     }
 
-    //  二次贝塞尔曲线
+    // 三阶贝塞尔曲线
     quadraticCurveTo(x1, y1, x2, y2) {
         this.addData(CMD.Q, x1, y1, x2, y2);
 
@@ -139,7 +148,67 @@ export class Path {
     }
 
     getBoundingRect() {
+        const min = new Vector2();
+        const max = new Vector2();
 
+        const data = this.data;
+
+        let xi = 0;
+        let yi = 0;
+
+        for(let i = 0; i < this._len;){
+            let min1 = new Vector2();
+            let max1 = new Vector2();
+
+            switch(data[i++]) {
+                case CMD.M:
+                    min1.x = max1.x = xi = data[i++];
+                    min1.y = max1.y = yi = data[i++];
+                    break;
+                case CMD.L:
+                    [min1, max1] = bbox.line(xi, yi, data[i], data[i + 1]);
+                    xi = data[i++];
+                    yi = data[i++];
+                    break;
+                case CMD.C:
+                    [min1, max1] = bbox.cubic(
+                        xi, yi, data[i++], data[i++], data[i++], data[i++], data[i], data[i + 1]
+                    );
+                    xi = data[i++];
+                    yi = data[i++];
+                    break;
+                case CMD.Q:
+                    [min1, max1] = bbox.quadratic(xi, yi, data[i++], data[i++], data[i], data[i + 1]);
+                    xi = data[i++];
+                    yi = data[i++];
+                    break;
+                case CMD.A:
+                    const cx = data[i++];
+                    const cy = data[i++];
+                    const rx = data[i++];
+                    const ry = data[i++];
+                    const startAngle = data[i++];
+                    const endAngle = data[i++];
+                    i++;
+                    const anticlockwise = 1 - data[i++];
+
+                    [min1, max1] = bbox.arc(cx, cy, rx, ry, startAngle, endAngle, anticlockwise);
+
+                    xi = Math.cos(endAngle) * rx + cx;
+                    yi = Math.sin(endAngle) * ry + cy;
+                    break;
+                case CMD.R:
+                    xi = data[i++];
+                    yi = data[i++];
+                    [min1, max1] = bbox.line(xi, yi, data[i++], data[i++]);
+                    break;
+            }
+
+            min.toMin(min1);
+            max.toMax(max1);
+        }
+
+        return new BoundingRect(min.x, min.y, max.x - min.x, max.y - min.y);
     }
 
     rebuildPath(ctx: CanvasRenderingContext2D) {
@@ -190,7 +259,7 @@ export class Path {
         rotation: number = 0,
         anticlockwise: number = 0,
     ){
-        if(Math.abs(rx - ry) > 1e-3){ // 椭圆
+        if(Math.abs(rx - ry) > Number.EPSILON * 2 ** 10){ // 椭圆
             ctx.save();
 
             const scaleX = rx > ry ? 1 : rx / ry;
