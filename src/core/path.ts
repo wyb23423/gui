@@ -155,15 +155,29 @@ export class Path {
 
         let xi = 0;
         let yi = 0;
+        let x0 = 0;
+        let y0 = 0;
 
         for(let i = 0; i < this._len;){
             let min1 = new Vector2();
             let max1 = new Vector2();
 
+            if (i === 1) {
+                // 如果第一个命令是 L, C, Q
+                // 则 previous point 同绘制命令的第一个 point
+                //
+                // 第一个命令为 Arc 的情况下会在后面特殊处理
+                xi = data[i];
+                yi = data[i + 1];
+
+                x0 = xi;
+                y0 = yi;
+            }
+
             switch(data[i++]) {
                 case CMD.M:
-                    min1.x = max1.x = xi = data[i++];
-                    min1.y = max1.y = yi = data[i++];
+                    min1.x = max1.x = xi = x0 = data[i++];
+                    min1.y = max1.y = yi = y0 = data[i++];
                     break;
                 case CMD.L:
                     [min1, max1] = bbox.line(xi, yi, data[i], data[i + 1]);
@@ -183,6 +197,8 @@ export class Path {
                     yi = data[i++];
                     break;
                 case CMD.A:
+                    const isStart = i === 1;
+
                     const cx = data[i++];
                     const cy = data[i++];
                     const rx = data[i++];
@@ -192,15 +208,26 @@ export class Path {
                     i++;
                     const anticlockwise = 1 - data[i++];
 
+                    if (isStart) {
+                        // 直接使用 arc 命令
+                        // 第一个命令起点还未定义
+                        x0 = Math.cos(startAngle) * rx + cx;
+                        y0 = Math.sin(startAngle) * ry + cy;
+                    }
+
                     [min1, max1] = bbox.arc(cx, cy, rx, ry, startAngle, endAngle, anticlockwise);
 
                     xi = Math.cos(endAngle) * rx + cx;
                     yi = Math.sin(endAngle) * ry + cy;
                     break;
                 case CMD.R:
-                    xi = data[i++];
-                    yi = data[i++];
+                    x0 = xi = data[i++];
+                    y0 = yi = data[i++];
                     [min1, max1] = bbox.line(xi, yi, data[i++], data[i++]);
+                    break;
+                case CMD.Z:
+                    xi = x0;
+                    yi = y0;
                     break;
             }
 
