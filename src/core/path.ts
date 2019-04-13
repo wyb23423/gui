@@ -1,17 +1,17 @@
 /**
- *
+ * 路径
  */
 
 import { Vector2 } from "../lib/vector";
 import * as bbox from '../lib/bbox';
-import { BoundingRect } from "./BoundingRect";
+import { BoundingRect } from "./bounding_rect";
 
 // =====================================
 enum CMD {
     M = 1, // moveTo
     L = 2, // lineTo
-    C = 3, // 三次贝塞尔
-    Q = 4, // 二次贝塞尔
+    C = 3, // 三阶贝塞尔
+    Q = 4, // 二阶贝塞尔
     A = 5, // arc
     Z = 6, // close
     R = 7 // rect
@@ -22,10 +22,10 @@ export class Path {
 
     lineDash: number[] = [];
 
-    private data: Float32Array;
-    private _len:number = 0;
+    private data: Nullable<Float32Array> = null;
+    private _len: number = 0;
 
-    private _ctx: CanvasRenderingContext2D;
+    private _ctx: Nullable<CanvasRenderingContext2D> = null;
 
     get context() {
         return this._ctx;
@@ -61,7 +61,7 @@ export class Path {
         return this;
     }
 
-    // 四阶贝塞尔曲线
+    // 三阶贝塞尔曲线
     bezierCurveTo(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
         this.addData(CMD.C, x1, y1, x2, y2, x3, y3);
 
@@ -70,8 +70,8 @@ export class Path {
         return this;
     }
 
-    // 三阶贝塞尔曲线
-    quadraticCurveTo(x1, y1, x2, y2) {
+    // 二阶贝塞尔曲线
+    quadraticCurveTo(x1: number, y1: number, x2: number, y2: number) {
         this.addData(CMD.Q, x1, y1, x2, y2);
 
         this._ctx && this._ctx.quadraticCurveTo(x1, y1, x2, y2);
@@ -83,13 +83,20 @@ export class Path {
      * @param  anticlockwise // 规定应该逆时针还是顺时针绘图。1 = 顺时针，0 = 逆时针。
      */
     arc (
-        c: number[],
-        r: number[],
+        c: number[] | number,
+        r: number[] | number,
         startAngle: number,
         endAngle: number,
         rotation: number = 0,
         anticlockwise: 0 | 1 = 0
     ) {
+        if(!Array.isArray(c)){
+            c = [c, c];
+        }
+        if(!Array.isArray(r)){
+            r = [r, r];
+        }
+
         this.addData(CMD.A, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise);
 
         if(this._ctx){
@@ -100,8 +107,8 @@ export class Path {
     }
 
     rect (x: number, y: number, w: number, h: number) {
-        this._ctx && this._ctx.rect(x, y, w, h);
         this.addData(CMD.R, x, y, w, h);
+        this._ctx && this._ctx.rect(x, y, w, h);
 
         return this;
     }
@@ -139,8 +146,10 @@ export class Path {
         this.data = new Float32Array(this._len + appendSize);
 
         path.forEach(append => {
-            for(let i=0; i<append.data.length; i++){
-                this.data[this._len++] = append.data[i];
+            if(append.data){
+                for(let i=0; i<append.data.length; i++){
+                    (<Float32Array>this.data)[this._len++] = append.data[i];
+                }
             }
         });
 
@@ -148,10 +157,10 @@ export class Path {
     }
 
     getBoundingRect() {
-        const min = new Vector2();
-        const max = new Vector2();
+        const min = new Vector2(Number.MAX_VALUE);
+        const max = new Vector2(-Number.MAX_VALUE);
 
-        const data = this.data;
+        const data = this.data || [];
 
         let xi = 0;
         let yi = 0;
@@ -159,16 +168,16 @@ export class Path {
         let y0 = 0;
 
         for(let i = 0; i < this._len;){
-            let min1 = new Vector2();
-            let max1 = new Vector2();
+            let min1 = new Vector2(Number.MAX_VALUE);
+            let max1 = new Vector2(-Number.MAX_VALUE);
 
-            if (i === 1) {
+            if (!i) {
                 // 如果第一个命令是 L, C, Q
                 // 则 previous point 同绘制命令的第一个 point
                 //
                 // 第一个命令为 Arc 的情况下会在后面特殊处理
-                xi = data[i];
-                yi = data[i + 1];
+                xi = data[i + 1];
+                yi = data[i +2];
 
                 x0 = xi;
                 y0 = yi;
@@ -223,7 +232,7 @@ export class Path {
                 case CMD.R:
                     x0 = xi = data[i++];
                     y0 = yi = data[i++];
-                    [min1, max1] = bbox.line(xi, yi, data[i++], data[i++]);
+                    [min1, max1] = bbox.line(xi, yi, xi + data[i++], yi + data[i++]);
                     break;
                 case CMD.Z:
                     xi = x0;
@@ -239,7 +248,43 @@ export class Path {
     }
 
     rebuildPath(ctx: CanvasRenderingContext2D) {
+        const data = this.data || [];
 
+        for(let i = 0; i < this._len;){
+            switch(data[i++]) {
+                case CMD.M:
+                    ctx.moveTo(data[i++], data[i++]);
+                    break;
+                case CMD.L:
+                    ctx.lineTo(data[i++], data[i++]);
+                    break;
+                case CMD.C:
+                    ctx.bezierCurveTo(data[i++], data[i++], data[i++], data[i++], data[i++], data[i++]);
+                    break;
+                case CMD.Q:
+                    ctx.quadraticCurveTo(data[i++], data[i++], data[i++], data[i++]);
+                    break;
+                case CMD.A:
+                    this._arc(
+                        ctx,
+                        data[i++], data[i++], // 圆心
+                        data[i++], data[i++], // 半轴长
+                        data[i++], data[i++], // 起始及结束角
+                        data[i++], // 旋转
+                        data[i++]
+                    );
+                    break;
+                case CMD.R:
+                    ctx.rect(data[i++], data[i++], data[i++], data[i++]);
+                    break;
+                case CMD.Z:
+                    ctx.closePath();
+                    break;
+                default:
+                    console.error('data数据错误。未找到对应的绘图命令: ' + data[i - 1]);
+                    return;
+            }
+        }
     }
 
     /**
@@ -247,12 +292,12 @@ export class Path {
      * 尽量复用而不申明新的数组。大部分图形重绘的指令数据长度都是不变的。
      */
     private addData(...arg: number[]) {
-        let data:number[] | Float32Array = this.data;
+        let data: Nullable<number[] | Float32Array> = this.data;
 
         if(!data || this._len + arg.length > data.length){
             data = this._expandData();
         }
-        arg.forEach(v => data[this._len++] = v);
+        arg.forEach(v => (<number[] | Float32Array>data)[this._len++] = v);
         this.toStatic(data);
 
         return this;
@@ -260,8 +305,11 @@ export class Path {
 
     private _expandData() {
         const newData = [];
-        for(let i = 0; i < this._len; i++){
-            newData[i] = this.data[i];
+
+        if(this.data){
+            for(let i = 0; i < this._len; i++){
+                newData[i] = this.data[i];
+            }
         }
 
         return newData;
@@ -277,14 +325,11 @@ export class Path {
     // 画一个圆弧
     private _arc(
         ctx: CanvasRenderingContext2D,
-        cx: number,
-        cy: number,
-        rx: number,
-        ry: number,
-        startAngle: number,
-        endAngle: number,
-        rotation: number = 0,
-        anticlockwise: number = 0,
+        cx: number, cy: number,
+        rx: number, ry: number,
+        startAngle: number, endAngle: number,
+        rotation: number,
+        anticlockwise: number,
     ){
         if(Math.abs(rx - ry) > Number.EPSILON * 2 ** 10){ // 椭圆
             ctx.save();

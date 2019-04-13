@@ -2,7 +2,7 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-04-10 21:43:23
+ * @Last Modified time: 2019-04-13 20:23:48
 */
 
 'use strict';
@@ -11,7 +11,7 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-    entry: './src/main.ts',
+    entry: './src/index.ts',
     output: {
         path: path.resolve(__dirname, '../dist'),
         filename: '[name].bundle.js',
@@ -33,5 +33,8 @@ module.exports = {
         splitChunks: {
             chunks: 'all'
         }
+    },
+    resolve: {
+        extensions: [".js", ".ts", ".tsx", ".json"]
     }
 };

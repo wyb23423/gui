@@ -7,7 +7,7 @@ import { cubicExtrema, bezier, quadraticExtremum } from "./bezier";
 /**
  * 直线
  */
-export function line(x1, y1, x2, y2){
+export function line(x1: number, y1: number, x2: number, y2: number){
     const min = Vector2.createMin([x1, x2], [y1, y2]);
     const max = Vector2.createMax([x1, x2], [y1, y2]);
 
@@ -17,7 +17,12 @@ export function line(x1, y1, x2, y2){
 /**
  * 四阶贝塞尔曲线
  */
-export function cubic(x0, y0, x1, y1, x2, y2, x3, y3){
+export function cubic(
+    x0: number, y0: number,
+    x1: number, y1: number,
+    x2: number, y2: number,
+    x3: number, y3: number
+){
     const min = Vector2.createMin([x0, x3], [y0, y3]);
     const max = Vector2.createMax([x0, x3], [y0, y3]);
 
@@ -38,7 +43,11 @@ export function cubic(x0, y0, x1, y1, x2, y2, x3, y3){
 /**
  * 三阶贝塞尔曲线
  */
-export function quadratic(x0, y0, x1, y1, x2, y2) {
+export function quadratic(
+    x0: number, y0: number,
+    x1: number, y1: number,
+    x2: number, y2: number
+) {
     const x = bezier(quadraticExtremum(x0, x1, x2), x0, x1, x2);
     const y = bezier(quadraticExtremum(y0, y1, y2), y0, y1, y2);
 
@@ -51,7 +60,12 @@ export function quadratic(x0, y0, x1, y1, x2, y2) {
 /**
  * 弧线
  */
-export function arc(cx, cy, rx, ry, startAngle, endAngle, anticlockwise){
+export function arc(
+    cx: number, cy: number,
+    rx: number, ry: number,
+    startAngle: number, endAngle: number,
+    anticlockwise: number
+){
     const diff = Math.abs(startAngle - endAngle);
     const PI2 = Math.PI * 2;
 
