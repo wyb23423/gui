@@ -2,7 +2,7 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-04-13 20:23:48
+ * @Last Modified time: 2019-04-14 12:17:51
 */
 
 'use strict';
@@ -35,6 +35,9 @@ module.exports = {
         }
     },
     resolve: {
-        extensions: [".js", ".ts", ".tsx", ".json"]
+        extensions: [".js", ".ts", ".tsx", ".json"],
+        alias: {
+            'src': path.resolve(__dirname, '../src/')
+        }
     }
 };
