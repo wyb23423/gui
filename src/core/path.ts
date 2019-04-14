@@ -2,6 +2,8 @@
  * 路径
  */
 
+/// <reference path="../types.d.ts" />
+
 import { Vector2 } from "../lib/vector";
 import * as bbox from '../lib/bbox';
 import { BoundingRect } from "./bounding_rect";

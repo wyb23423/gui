@@ -9,7 +9,7 @@ export function cached<P, T>(fn: (arg: P) => T): (arg: P) => T {
             cache.set(arg, fn(arg));
         }
 
-        return clone(cache.get(arg));
+        return cache.get(arg);
     }
 }
 
