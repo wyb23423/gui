@@ -2,8 +2,6 @@
  * 路径
  */
 
-/// <reference path="../types.d.ts" />
-
 import { Vector2 } from "../lib/vector";
 import * as bbox from '../lib/bbox';
 import { BoundingRect } from "./bounding_rect";
@@ -24,10 +22,10 @@ export class Path {
 
     lineDash: number[] = [];
 
-    private data: Nullable<Float32Array> = null;
+    private data?: Float32Array;
     private _len: number = 0;
 
-    private _ctx: Nullable<CanvasRenderingContext2D> = null;
+    private _ctx?: CanvasRenderingContext2D;
 
     get context() {
         return this._ctx;
@@ -294,7 +292,7 @@ export class Path {
      * 尽量复用而不申明新的数组。大部分图形重绘的指令数据长度都是不变的。
      */
     private addData(...arg: number[]) {
-        let data: Nullable<number[] | Float32Array> = this.data;
+        let data: number[] | Float32Array | void = this.data;
 
         if(!data || this._len + arg.length > data.length){
             data = this._expandData();

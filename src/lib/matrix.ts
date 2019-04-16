@@ -17,7 +17,7 @@ export class Matrix {
      * 使用2维数组创建变换矩阵
      */
     static of(data: number[][]){
-        return new Matrix(...data[0], ...data[1])
+        return new Matrix(...data[0], ...data[1]);
     }
 
     toArray(){

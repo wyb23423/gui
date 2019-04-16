@@ -1,7 +1,7 @@
 /**
  * 包围盒
  */
-import { Matrix, mul } from 'src/lib/matrix';
+import { Matrix, mul } from '../lib/matrix';
 
 export class BoundingRect {
     constructor(

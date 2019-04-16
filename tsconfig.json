@@ -12,7 +12,6 @@
     "baseUrl": ".",
     "lib": [
       "dom",
-      "es5",
       "esnext",
       "scripthost",
       "webworker"
