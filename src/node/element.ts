@@ -11,7 +11,6 @@ export class Canvas2DElement implements ICanvas2DElement {
     dirty = true;
     transform = new Matrix();
     parent?: ICanvas2DElement;
-    style: IStyle = {};
     layer?: Layer;
 
     private _cached?: HTMLCanvasElement;
@@ -20,14 +19,6 @@ export class Canvas2DElement implements ICanvas2DElement {
         public id: string | number,
         public isStatic: boolean = false
     ) {}
-
-    addSelfToLayer(layer: Layer){
-        if(layer){
-            layer.add(this);
-        }
-
-        return this;
-    }
 
     dispose() {
         if(this.layer) {
@@ -57,6 +48,8 @@ export class Canvas2DElement implements ICanvas2DElement {
         }
         ctx.restore();
     }
+    
+    build(ctx: CanvasRenderingContext2D) {}
 
     protected updateTransform(){
         let parent: ICanvas2DElement = this.parent;
@@ -68,5 +61,5 @@ export class Canvas2DElement implements ICanvas2DElement {
         return this;
     }
 
-    private build(ctx: CanvasRenderingContext2D) {}
+    
 }

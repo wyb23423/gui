@@ -48,7 +48,10 @@ export class Engine {
     }
 
     dispose(){
+        this.layers.forEach(v => v.dispose());
+        this.layers.clear();
 
+        this._root = null;
     }
 
     private _render(){
