@@ -1,32 +1,44 @@
-import { Canvas2DElement } from "./node/element";
+/**
+ * canvas层
+ */
 
-export class Layer {
-    z: number = 0;
+/// <reference path="./types.d.ts" />
+
+export class Layer implements ILayer {
     canvas: HTMLCanvasElement = document.createElement('canvas');
     ctx = <CanvasRenderingContext2D>this.canvas.getContext('2d');
-    nodes: Canvas2DElement[] = [];
-    dirty: boolean = false;
+    dirty: boolean = true;
 
-    remove(key: Canvas2DElement | string){
-        const i = this._findIndex(key);
-        if(i >= 0) {
-            this.nodes.splice(i, 1);
+    roots: ICanvas2DElement[] = [];
+
+    constructor(public z: number = 0) {}
+
+    add(el: ICanvas2DElement){
+        if(el.layer !== this){
+            el.layer = this;
+            this.roots.push(el);
         }
 
         return this;
     }
 
-    find(key: Canvas2DElement | string){
-        return this.nodes[this._findIndex(key)];
+    remove(el: ICanvas2DElement){
+        const i: number = this.roots.findIndex(v => v === el);
+        if(i >= 0) {
+            el.layer = null;
+            this.roots.splice(i, 0)[0].dispose();
+        }
+
+        return this;
     }
 
-    private _findIndex(key: Canvas2DElement | string){
-        return this.nodes.findIndex(v => {
-            if(typeof key === 'string'){
-                return v.id === key;
-            } else {
-                return v === key;
-            }
+    dispose(){
+        this.roots.forEach(v => {
+            v.layer = null;
+            v.dispose();
         })
+        
+        this.roots.length = 0;
+        this.canvas = this.ctx = null;
     }
 }

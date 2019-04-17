@@ -27,6 +27,15 @@ export class Matrix {
             [0, 0, 1]
         ]
     }
+
+    transform(m: Matrix){
+        [
+            [this.a, this.c, this.e],
+            [this.b, this.d, this.f]
+        ] = mul(m.toArray(), this.toArray());
+
+        return this;
+    }
 }
 
 /**
