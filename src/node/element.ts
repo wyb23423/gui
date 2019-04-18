@@ -54,7 +54,7 @@ export class Canvas2DElement {
                 }
                 ctx.drawImage(this._cached, 0, 0);
             } else {
-                this.build(ctx);
+                await this.build(ctx);
             }
             ctx.restore();
         }
