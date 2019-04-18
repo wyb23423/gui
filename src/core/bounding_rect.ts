@@ -29,4 +29,16 @@ export class BoundingRect {
 
         return this;
     }
+
+    contain(x: number, y: number){
+        return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h; 
+    }
+
+    createCanvas(){
+        const canvas = document.createElement('canvas');
+        canvas.width = this.w;
+        canvas.height = this.h;
+
+        return canvas;
+    }
 }

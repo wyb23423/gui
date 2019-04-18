@@ -3,10 +3,18 @@ import { Layer } from "./layer";
 export class Engine {
     layers: Map<number, Layer> = new Map();
 
-    constructor(private _root?: HTMLElement) {}
+    constructor(private _root: HTMLElement) {
+        Object.assign(_root.style, {
+            '-webkit-tap-highlight-color': 'transparent',
+            '-webkit-user-select': 'none',
+            'user-select': 'none',
+            '-webkit-touch-callout': 'none'    
+        })
+        _root.innerHTML = '';
+    }
 
     render(){
-        this._render();
+        this.layers.forEach(v => v.render());
         
         if(this._root){
             requestAnimationFrame(this.render.bind(this));
@@ -14,14 +22,15 @@ export class Engine {
     }
 
     addLayer(layer: Layer | number){
-        if(typeof layer === 'number'){
-            layer = new Layer(layer);
-        }
-
-        if(this.layers.has(layer.z)){
-            console.warn(`层级${layer.z}已存在`);
+        let z: number = typeof layer === 'number' ? layer : layer.z;
+        if(this.layers.has(z)) {
+            console.warn(`层级${z}已存在`);
         } else {
-            this.layers.set(layer.z, layer);
+            if(typeof layer === 'number'){
+                layer = new Layer(this._root.offsetWidth, this._root.offsetHeight, layer);
+            }
+
+            this.layers.set(z, layer);
         }
 
         return this;
@@ -30,6 +39,7 @@ export class Engine {
     replaceLayer(layer: Layer){
         const old = this.layers.get(layer.z);
         if(old){
+            this._root.removeChild(old.canvas);
             old.dispose();
         }
         this.layers.set(layer.z, layer);
@@ -39,8 +49,10 @@ export class Engine {
 
     removeLayer(layer: Layer | number){
         const z: number = typeof layer === 'number' ? layer : layer.z;
-        if(this.layers.has(z)){
-            this.layers.get(z).dispose();
+        const curLayer = this.layers.get(z);
+        if(curLayer){
+            this._root.removeChild(curLayer.canvas);
+            curLayer.dispose();
             this.layers.delete(z);
         }
         
@@ -52,13 +64,5 @@ export class Engine {
         this.layers.clear();
 
         this._root = null;
-    }
-
-    private _render(){
-        this.layers.forEach(v=>{
-            if(v.dirty){
-                //
-            }
-        });
     }
 }

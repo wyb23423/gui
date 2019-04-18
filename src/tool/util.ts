@@ -40,3 +40,24 @@ export function clone(obj: any){
         return obj;
     }
 }
+
+const imgReg = /\.(jpg|png|gif|jpeg|)/i;
+export function isImg(str: any){
+    if(typeof str === 'string'){
+        return imgReg.test(str);
+    }
+
+    return false;
+}
+
+export function makeCheckExit(str: string, ignore?: boolean){
+    const keys = str.split(' ');
+
+    return function(k: string){
+        if(ignore) {
+            k = k.toLowerCase();
+        }
+
+        return keys.includes(k);
+    }
+}

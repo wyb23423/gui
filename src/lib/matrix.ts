@@ -28,11 +28,43 @@ export class Matrix {
         ]
     }
 
-    transform(m: Matrix){
+    transform(m: Matrix | number[][]){
+        if(m instanceof Matrix){
+            m = m.toArray();
+        }
+
         [
             [this.a, this.c, this.e],
             [this.b, this.d, this.f]
-        ] = mul(m.toArray(), this.toArray());
+        ] = mul(m, this.toArray());
+
+        return this;
+    }
+
+    rotate(rotation: number){
+        if(rotation) {
+            const cos = Math.cos(rotation);
+            const sin = Math.sin(rotation);
+            this.transform(
+                [
+                    [cos, -sin, 0],
+                    [sin, cos, 0],
+                    [0, 0, 1]
+                ]
+            );
+        }
+
+        return this;
+    }
+
+    scale(sx: number, sy: number = sx){
+        if(sx != null && sx !== 1){
+            this.a *= sx;
+        }
+
+        if(sy != null && sx !== 1){
+            this.d *= sy;
+        }
 
         return this;
     }
