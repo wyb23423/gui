@@ -17,7 +17,9 @@ export class Canvas2DElement {
     style: Style = new Style();
 
     private isVisible?: boolean = true;
-    private _cached?: HTMLCanvasElement;  
+    private _cached?: HTMLCanvasElement;
+    private _parentWidth?: number;
+    private _parentHeight?: number;
 
     constructor(
         public id: string | number,
@@ -46,7 +48,11 @@ export class Canvas2DElement {
             this.getBoundingRect();
 
             ctx.save();
-            ctx.setTransform(this.transform);
+            if(this.parent && this.parent.style.clip){
+                ctx.globalCompositeOperation = 'source-in';
+            }
+            this.setTransform(ctx);
+
             if(this.isStatic){
                 if(!this._cached){
                     this._cached = this.rect.createCanvas();
@@ -60,27 +66,42 @@ export class Canvas2DElement {
         }
     }
 
-    attr(key: string | Istyle, value: any){
+    attr(key: string | Istyle, value?: any){
         if(this.style.set(key, value)){
             this.rect = null;
         }
 
         this.markDirty();
     }
-    
+
     build(ctx: CanvasRenderingContext2D) {}
 
     getBoundingRect() {
         if(!this.rect) {
+            this._parentWidth = this._getBaseSize('width');
+            this._parentHeight = this._getBaseSize('height');
+
+
             const width = this._parseSize(this.style.width, 'width');
             const height = this._parseSize(this.style.height, 'height');
-    
+
             this._updateTransform(width, height);
             this.rect = new BoundingRect(this.transform.e, this.transform.f, width, height);
         }
 
         return this.rect;
     };
+
+    setTransform(ctx: CanvasRenderingContext2D){
+        const mx = this.style.origin[0] * this.rect.w;
+        const my = this.style.origin[1] * this.rect.h;
+        ctx.translate(mx, my);
+
+        const {a, b, c, d, e, f} = this.transform;
+        ctx.transform(a, b, c, d, e, f);
+
+        ctx.translate(-mx, -my);
+    }
 
     markDirty(){
         if(this.parent){
@@ -98,7 +119,7 @@ export class Canvas2DElement {
         if(style.left != null) {
             x = this._parseSize(style.left, 'width');
         } else if(style.right != null){
-            x = this._parseSize(style.right, 'width');
+            x = this._parentWidth - this._parseSize(style.right, 'width') - width;
         } else {
             x = this._parseSize('50%', 'width') - width / 2;
         }
@@ -106,17 +127,16 @@ export class Canvas2DElement {
         if(style.top != null) {
             y = this._parseSize(style.top, 'height');
         } else if(style.bottom != null){
-            y = this._parseSize(style.bottom, 'height');
+            y = this._parentHeight - this._parseSize(style.bottom, 'height') - height;
         } else {
             y = this._parseSize('50%', 'height') - height / 2;
         }
 
-        this.transform.e = x;
-        this.transform.f = y;
-
         this.transform
-            .rotate(this.style.rotation)
-            .scale(this.style.scale[0], this.style.scale[1]);
+            .toUnit()
+            .translate(x, y)
+            .scale(this.style.scale[0], this.style.scale[1])
+            .rotate(this.style.rotation);
 
         if(this.parent){
             this.transform.transform(this.parent.transform);
@@ -127,10 +147,10 @@ export class Canvas2DElement {
         if(typeof size === 'string'){
             if(size.endsWith('%')){
                 let base: number = 0;
-                if(this.parent) {
-                    base = this.parent.rect[key[0]];
-                } else if(this.layer){
-                    base = this.layer.canvas[key];
+                if(key === 'width') {
+                    base = this._parentWidth;
+                } else {
+                    base = this._parentHeight;
                 }
 
                 return base * (parseFloat(size) || 0);
@@ -140,5 +160,16 @@ export class Canvas2DElement {
         }
 
         return <number>size;
+    }
+
+    private _getBaseSize(key: 'width'| 'height'){
+        let base: number = 0;
+        if(this.parent) {
+            base = this.parent.rect[key[0]];
+        } else if(this.layer){
+            base = this.layer.canvas[key];
+        }
+
+        return base;
     }
 }

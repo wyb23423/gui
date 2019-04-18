@@ -50,11 +50,16 @@ export interface Istyle {
     right?: number;
     top?: number;
     bottom?: number;
+
+    origin?: number | number[];
+    originX?: number;
+    originY?: number;
 }
 
 export const isTransformKey = makeCheckExit(
-    'rotation left top bottom right ' + 
-    'scale scaleX scaleY width height'
+    'rotation left top bottom right ' +
+    'scale scaleX scaleY width height' +
+    'origin originX originY'
 )
 
 export class Style {
@@ -81,6 +86,10 @@ export class Style {
 
     zIndex: number = 0;
 
+    clip: boolean = false;
+
+    origin: number[] = [0.5, 0.5];
+
     set(key: string | Istyle, value: any){
         if(typeof key === 'string'){
             this.attr([key, value]);
@@ -96,8 +105,8 @@ export class Style {
             ctx.setLineDash(this.borderStyle);
             ctx.strokeStyle = this.borderColor;
             ctx.lineWidth = this.border;
-        } 
-        ctx.globalAlpha = this.opacity;       
+        }
+        ctx.globalAlpha = this.opacity;
 
         return new Promise(resolve => {
             if(isImg(this.background)){
@@ -110,7 +119,7 @@ export class Style {
                 }
             } else {
                 if(this.background) {
-                    ctx.fillStyle = this.background; 
+                    ctx.fillStyle = this.background;
                 }
 
                 resolve();
@@ -123,13 +132,13 @@ export class Style {
             case 'borderRadius':
                 this[key] = parseNumArr(value);
                 break;
-            case 'scale':
+            case 'scale': case 'origin':
                 this[key] = Array.isArray(value) ? value : [value, value];
                 break;
-            case 'scaleX':
-                this.scale[0] = value;
+            case 'scaleX': case 'originX':
+                this[key.substr(0, key.length - 1)][0] = value;
                 break;
-            case 'scaleY':
+            case 'scaleY': case 'originY':
                 this.scale[1] = value;
                 break;
             default: this[key] = value;

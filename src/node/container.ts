@@ -3,9 +3,18 @@
  */
 
 import { Canvas2DElement } from "./element";
+import { Istyle } from "../core/style";
 
 export class Container extends Canvas2DElement {
     children: Canvas2DElement[] = [];
+
+    attr(key: string | Istyle, value?: any){
+        super.attr(key, value);
+
+        if(!this.rect){
+            this.children.forEach(v => v.rect = null);
+        }
+    }
 
     async build(ctx: CanvasRenderingContext2D){
         ctx.beginPath();
@@ -37,11 +46,11 @@ export class Container extends Canvas2DElement {
         if(i >= 0){
             el.parent = null;
             this.children.splice(i, 1);
-            
+
             if(dispose) {
                 el.dispose();
             }
-            
+
             this.markDirty();
         }
 

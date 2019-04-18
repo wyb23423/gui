@@ -16,7 +16,7 @@ export class BoundingRect {
             [this.x, this.x + this.w, this.x + this.w, this.x],
             [this.y, this.y, this.y + this.h, this.y + this.h],
             [1, 1, 1, 1]
-        ]
+        ];
     }
 
     transform(m: Matrix){
@@ -31,7 +31,7 @@ export class BoundingRect {
     }
 
     contain(x: number, y: number){
-        return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h; 
+        return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h;
     }
 
     createCanvas(){

@@ -20,6 +20,16 @@ export class Matrix {
         return new Matrix(...data[0], ...data[1]);
     }
 
+    /**
+     * 重置为单位阵
+     */
+    toUnit(){
+        this.a = this.d = 1;
+        this.c = this.e = this.b = this.f = 1;
+
+        return this;
+    }
+
     toArray(){
         return [
             [this.a, this.c, this.e],
@@ -65,6 +75,13 @@ export class Matrix {
         if(sy != null && sx !== 1){
             this.d *= sy;
         }
+
+        return this;
+    }
+
+    translate(x: number = 0, y: number = 0){
+        this.e += x;
+        this.f += y;
 
         return this;
     }
