@@ -160,7 +160,7 @@ export class Path {
         const min = new Vector2(Number.MAX_VALUE);
         const max = new Vector2(-Number.MAX_VALUE);
 
-        const data = this.data || [];
+        const data: number[] | Float32Array = this.data || [];
 
         let xi = 0;
         let yi = 0;
@@ -248,7 +248,7 @@ export class Path {
     }
 
     rebuildPath(ctx: CanvasRenderingContext2D) {
-        const data = this.data || [];
+        const data: any[] | Float32Array = this.data || [];
 
         for(let i = 0; i < this._len;){
             switch(data[i++]) {

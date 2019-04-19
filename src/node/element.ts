@@ -164,9 +164,9 @@ export class Canvas2DElement {
 
     private _getBaseSize(key: 'width'| 'height'){
         let base: number = 0;
-        if(this.parent) {
-            base = this.parent.rect[key[0]];
-        } else if(this.layer){
+        if(this.parent && this.parent.rect) {
+            base = this.parent.rect[<'w' | 'h'>key[0]];
+        } else if(this.layer && this.layer.canvas){
             base = this.layer.canvas[key];
         }
 

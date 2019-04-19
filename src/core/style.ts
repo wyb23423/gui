@@ -1,8 +1,9 @@
-import { isImg, makeCheckExit } from "../tool/util";
+/// <reference lib="es2017.object" />
 
 /**
  * 样式
  */
+import { isImg, makeCheckExist } from "../tool/util";
 
 /**
  * 将数据解析为有4个元素的数组
@@ -56,9 +57,9 @@ export interface Istyle {
     originY?: number;
 }
 
-export const isTransformKey = makeCheckExit(
+export const isTransformKey = makeCheckExist(
     'rotation left top bottom right ' +
-    'scale scaleX scaleY width height' +
+    'scale scaleX scaleY width height ' +
     'origin originX originY'
 )
 
@@ -135,13 +136,11 @@ export class Style {
             case 'scale': case 'origin':
                 this[key] = Array.isArray(value) ? value : [value, value];
                 break;
-            case 'scaleX': case 'originX':
-                this[key.substr(0, key.length - 1)][0] = value;
+            case 'scaleX': case 'originX': case 'scaleY': case 'originY':
+                const k = <'scale' | 'origin'>key.substr(0, key.length - 1);
+                this[k][key.endsWith('X') ? 0 : 1] = value;
                 break;
-            case 'scaleY': case 'originY':
-                this.scale[1] = value;
-                break;
-            default: this[key] = value;
+            default: Reflect.set(this, key, value);
         }
 
         return isTransformKey(key);

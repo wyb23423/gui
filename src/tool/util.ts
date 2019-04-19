@@ -1,3 +1,5 @@
+/// <reference lib="es2017.object" />
+
 /**
  * 创建一个纯函数的缓存版本
  */
@@ -50,7 +52,7 @@ export function isImg(str: any){
     return false;
 }
 
-export function makeCheckExit(str: string, ignore?: boolean){
+export function makeCheckExist(str: string, ignore?: boolean){
     const keys = str.split(' ');
 
     return function(k: string){
