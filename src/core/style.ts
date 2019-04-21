@@ -140,7 +140,7 @@ export class Style {
         if(this.clip){
             if(this.border){
                 ctx.beginPath();
-                ctx.rect(0, 0, width - this.border / 2, height - this.border / 2);
+                ctx.rect(this.border / 2, this.border / 2, width - this.border, height - this.border);
                 ctx.closePath();
             }
 

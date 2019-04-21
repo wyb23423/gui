@@ -28,7 +28,7 @@ controls[0].attr({
     border: 10,
     borderColor: '#ccc',
     // origin: [0, 0],
-    // clip: true
+    clip: true
 });
 controls[1].attr({
     width: 20,

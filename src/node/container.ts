@@ -40,7 +40,9 @@ export class Container extends Canvas2DElement {
         ctx.restore();
 
         ctx.save();
-        this.setTransform(ctx);
+        if(this.style.clip) {
+            this.setTransform(ctx);
+        }
         this.style.inherit(ctx, width, height);
 
         return this._renderChildren(ctx);
