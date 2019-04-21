@@ -135,6 +135,9 @@ export class Style {
         })
     }
 
+    /**
+     * 设置继承样式
+     */
     inherit(ctx: CanvasRenderingContext2D, width: number, height: number){
         ctx.globalAlpha *= this.opacity;
         if(this.clip){

@@ -8,7 +8,6 @@ import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { isZero } from "../tool/util";
-import { Vector2 } from "../lib/vector";
 
 export class Canvas2DElement {
     transform = new Matrix();
@@ -52,10 +51,14 @@ export class Canvas2DElement {
 
     async draw(ctx: CanvasRenderingContext2D){
         if(this.isVisible) {
+            this.beforeUpdate();
             this.getBoundingRect();
+            this.afterUpdate();
 
             ctx.save();
             this.setTransform(ctx);
+
+            this.beforeBuild();
 
             if(this.isStatic){
                 if(!this._cached){
@@ -70,9 +73,14 @@ export class Canvas2DElement {
                 await this.build(ctx);
             }
             ctx.restore();
+
+            this.afterBuild();
         }
     }
 
+    /**
+     * 设置节点样式
+     */
     attr(key: string | Istyle, value?: any){
         if(this.style.set(key, value)){
             this.rect = null;
@@ -81,24 +89,15 @@ export class Canvas2DElement {
         this.markDirty();
     }
 
-    build(ctx: CanvasRenderingContext2D) {}
-
+    /**
+     * 获取节点AABB类包围盒
+     */
     getBoundingRect() {
         if(!this.rect) {
-            this._parentWidth = this._getBaseSize('width');
-            this._parentHeight = this._getBaseSize('height');
-
-            const width = this.width = this._parseSize(this.style.width, 'width');
-            const height = this.height = this._parseSize(this.style.height, 'height');
-
-            this.style.border = Math.min(this.style.border || 0, width / 2, height / 2);
-
-            this.origin[0] = this.style.origin[0] * width;
-            this.origin[1] = this.style.origin[1] * height;
-            this._updateTransform(width, height);
+            this.update();
 
             this.rect
-                = new BoundingRect(-this.origin[0], -this.origin[1], width, height)
+                = new BoundingRect(-this.origin[0], -this.origin[1], this.width, this.height)
                     .transform(this.transform);
         }
 
@@ -112,6 +111,9 @@ export class Canvas2DElement {
         ctx.translate(this.style.border / 2, this.style.border / 2);
     }
 
+    /**
+     * 标记节点所在的层需要重绘
+     */
     markDirty(){
         if(this.parent){
             this.parent.markDirty();
@@ -121,7 +123,37 @@ export class Canvas2DElement {
         }
     }
 
-    protected buildPath(ctx: CanvasRenderingContext2D){
+    // ========================钩子函数
+    beforeUpdate() {}
+
+    update(){
+        this._parentWidth = this._getBaseSize('width');
+        this._parentHeight = this._getBaseSize('height');
+
+        if(!(this.isStatic && this._cached)){
+            const width = this.width = this._parseSize(this.style.width, 'width');
+            const height = this.height = this._parseSize(this.style.height, 'height');
+
+            this.style.border = Math.min(this.style.border || 0, width / 2, height / 2);
+
+            this.origin[0] = this.style.origin[0] * width;
+            this.origin[1] = this.style.origin[1] * height;
+        }
+
+        this._updateTransform();
+    }
+
+    afterUpdate(){}
+
+    beforeBuild() {}
+    build(ctx: CanvasRenderingContext2D) {}
+    afterBuild() {}
+    // =============================================================
+
+    /**
+     * 构建圆角矩形
+     */
+    protected buildRadiusPath(ctx: CanvasRenderingContext2D){
         const w = this.width - this.style.border;
         const h = this.height - this.style.border;
 
@@ -153,24 +185,24 @@ export class Canvas2DElement {
         }
     }
 
-    private _updateTransform(width: number, height: number){
+    private _updateTransform(){
         const style = this.style;
 
         let x: number, y: number;
         if(style.left != null) {
             x = this._parseSize(style.left, 'width');
         } else if(style.right != null){
-            x = this._parentWidth - this._parseSize(style.right, 'width') - width;
+            x = this._parentWidth - this._parseSize(style.right, 'width') - this.width;
         } else {
-            x = this._parseSize('50%', 'width') - width / 2;
+            x = this._parseSize('50%', 'width') - this.width / 2;
         }
 
         if(style.top != null) {
             y = this._parseSize(style.top, 'height');
         } else if(style.bottom != null){
-            y = this._parentHeight - this._parseSize(style.bottom, 'height') - height;
+            y = this._parentHeight - this._parseSize(style.bottom, 'height') - this.height;
         } else {
-            y = this._parseSize('50%', 'height') - height / 2;
+            y = this._parseSize('50%', 'height') - this.height / 2;
         }
 
         this.transform

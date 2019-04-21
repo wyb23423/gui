@@ -22,7 +22,7 @@ export class Container extends Canvas2DElement {
 
         ctx.beginPath();
         if(this.style.borderRadius){
-            this.buildPath(ctx);
+            this.buildRadiusPath(ctx);
         } else {
             ctx.rect(0, 0, width, height);
         }
