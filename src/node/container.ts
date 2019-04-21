@@ -17,28 +17,33 @@ export class Container extends Canvas2DElement {
     }
 
     async build(ctx: CanvasRenderingContext2D){
+        const width = this.width - this.style.border;
+        const height = this.height - this.style.border;
+
         ctx.beginPath();
         if(this.style.borderRadius){
             this.buildPath(ctx);
         } else {
-            ctx.rect(0, 0, this.rect.w, this.rect.h);
+            ctx.rect(0, 0, width, height);
         }
         ctx.closePath();
 
-        await this.style.build(ctx);
+        await this.style.build(ctx, width, height);
 
-        if(this.style.border){
-            ctx.stroke();
-        }
         if(this.style.background){
             ctx.fill();
         }
+        if(this.style.border){
+            ctx.stroke();
+        }
 
-        return Promise.all(
-            Array.from(this.children)
-                .sort((a, b) => a.style.zIndex - b.style.zIndex)
-                .map(v => v.draw(ctx))
-        );
+        ctx.restore();
+
+        ctx.save();
+        this.setTransform(ctx);
+        this.style.inherit(ctx, width, height);
+
+        return this._renderChildren(ctx);
     }
 
     remove(el: Canvas2DElement, dispose: boolean = true){
@@ -77,15 +82,21 @@ export class Container extends Canvas2DElement {
         this.children.length = 0;
     }
 
-    private buildPath(ctx: CanvasRenderingContext2D){
-        const {w, h} = this.rect;
-        const radius = this.style.borderRadius;
+    private _renderChildren(ctx: CanvasRenderingContext2D){
+        const arr = Array.from(this.children).sort((a, b) => a.style.zIndex - b.style.zIndex);
 
-        ctx.moveTo(0, h - radius[3]);
+        return new Promise(resolve => {
+            const _render = async (i: number) => {
+                const node = arr[i++];
+                if(node){
+                    await node.draw(ctx);
+                    _render(i);
+                } else {
+                    resolve();
+                }
+            }
 
-        ctx.arcTo(0, 0, w, 0, radius[0]);
-        ctx.arcTo(w, 0, w, h, radius[1]);
-        ctx.arcTo(w, h, 0, h, radius[2]);
-        ctx.arcTo(0, h, 0, 0, radius[3]);
+            _render(0);
+        });
     }
 }

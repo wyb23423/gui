@@ -2,11 +2,13 @@
  * 节点基类
  */
 
-import { Matrix } from "../lib/matrix";
+import { Matrix, mul } from "../lib/matrix";
 import { Layer } from "../layer";
 import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
+import { isZero } from "../tool/util";
+import { Vector2 } from "../lib/vector";
 
 export class Canvas2DElement {
     transform = new Matrix();
@@ -16,10 +18,15 @@ export class Canvas2DElement {
 
     style: Style = new Style();
 
+    origin: number[] = [0, 0];
+
+    width: number = 0;
+    height: number = 0;
+
     private isVisible?: boolean = true;
     private _cached?: HTMLCanvasElement;
-    private _parentWidth?: number;
-    private _parentHeight?: number;
+    private _parentWidth: number = 0;
+    private _parentHeight: number = 0;
 
     constructor(
         public id: string | number,
@@ -48,14 +55,14 @@ export class Canvas2DElement {
             this.getBoundingRect();
 
             ctx.save();
-            if(this.parent && this.parent.style.clip){
-                ctx.globalCompositeOperation = 'source-in';
-            }
             this.setTransform(ctx);
 
             if(this.isStatic){
                 if(!this._cached){
-                    this._cached = this.rect.createCanvas();
+                    const canvas = this._cached = document.createElement('canvas');
+                    canvas.width = this.width;
+                    canvas.height = this.height;
+
                     await this.build(this._cached.getContext('2d'));
                 }
                 ctx.drawImage(this._cached, 0, 0);
@@ -81,26 +88,28 @@ export class Canvas2DElement {
             this._parentWidth = this._getBaseSize('width');
             this._parentHeight = this._getBaseSize('height');
 
+            const width = this.width = this._parseSize(this.style.width, 'width');
+            const height = this.height = this._parseSize(this.style.height, 'height');
 
-            const width = this._parseSize(this.style.width, 'width');
-            const height = this._parseSize(this.style.height, 'height');
+            this.style.border = Math.min(this.style.border || 0, width / 2, height / 2);
 
+            this.origin[0] = this.style.origin[0] * width;
+            this.origin[1] = this.style.origin[1] * height;
             this._updateTransform(width, height);
-            this.rect = new BoundingRect(this.transform.e, this.transform.f, width, height);
+
+            this.rect
+                = new BoundingRect(-this.origin[0], -this.origin[1], width, height)
+                    .transform(this.transform);
         }
 
         return this.rect;
     };
 
     setTransform(ctx: CanvasRenderingContext2D){
-        const mx = this.style.origin[0] * this.rect.w;
-        const my = this.style.origin[1] * this.rect.h;
-        ctx.translate(mx, my);
+        let {a, b, c, d, e, f} = this.transform;
 
-        const {a, b, c, d, e, f} = this.transform;
-        ctx.transform(a, b, c, d, e, f);
-
-        ctx.translate(-mx, -my);
+        ctx.setTransform(a, b, c, d, e, f);
+        ctx.translate(this.style.border / 2, this.style.border / 2);
     }
 
     markDirty(){
@@ -109,6 +118,38 @@ export class Canvas2DElement {
         }
         if(this.layer){
             this.layer.dirty = true;
+        }
+    }
+
+    protected buildPath(ctx: CanvasRenderingContext2D){
+        const w = this.width - this.style.border;
+        const h = this.height - this.style.border;
+
+        let circleCount: number = 0;
+        const radius = this.style.borderRadius.map((v, i) => {
+            const base = i % 2 ? h : w;
+            if(v <= 1) {
+                v *= base;
+            }
+            v = Math.min(v, base / 2);
+            if(isZero(v - base / 2)){
+                circleCount++;
+                v = base / 2;
+            }
+
+            return v;
+        });
+
+        if(circleCount >= 4){
+            const r = radius[0]
+            ctx.arc(r, r, r, 0, Math.PI * 2);
+        } else {
+            ctx.moveTo(0, h - radius[3]);
+
+            ctx.arcTo(0, 0, w, 0, radius[0]);
+            ctx.arcTo(w, 0, w, h, radius[1]);
+            ctx.arcTo(w, h, 0, h, radius[2]);
+            ctx.arcTo(0, h, 0, 0, radius[3]);
         }
     }
 
@@ -134,12 +175,16 @@ export class Canvas2DElement {
 
         this.transform
             .toUnit()
-            .translate(x, y)
-            .scale(this.style.scale[0], this.style.scale[1])
-            .rotate(this.style.rotation);
+            .translate(-this.origin[0], -this.origin[1])
+            .scale(this.style.scale)
+            .rotate(this.style.rotation)
+            .translate(x + this.origin[0], y + this.origin[1]);
 
         if(this.parent){
-            this.transform.transform(this.parent.transform);
+            const parent = this.parent;
+            this.transform
+                .translate(parent.style.border, parent.style.border)
+                .transform(parent.transform);
         }
     }
 
@@ -153,7 +198,7 @@ export class Canvas2DElement {
                     base = this._parentHeight;
                 }
 
-                return base * (parseFloat(size) || 0);
+                return base * (parseFloat(size) || 0) / 100;
             } else {
                 return parseFloat(size) || 0;
             }
@@ -164,8 +209,11 @@ export class Canvas2DElement {
 
     private _getBaseSize(key: 'width'| 'height'){
         let base: number = 0;
-        if(this.parent && this.parent.rect) {
-            base = this.parent.rect[<'w' | 'h'>key[0]];
+        if(this.parent) {
+            base = this.parent[key];
+            if(this.parent.style.border) {
+                base -= this.parent.style.border * 2;
+            }
         } else if(this.layer && this.layer.canvas){
             base = this.layer.canvas[key];
         }

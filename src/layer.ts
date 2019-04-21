@@ -6,10 +6,10 @@ import { createCanvas } from "./core/dom";
 
 export class Layer {
     canvas?: HTMLCanvasElement;
-    ctx?: CanvasRenderingContext2D;;
     dirty: boolean = true;
 
-    roots: Canvas2DElement[] = [];
+    private roots: Canvas2DElement[] = [];
+    private ctx?: CanvasRenderingContext2D;;
 
     constructor(width: number, height: number, public z: number = 0) {
         this.canvas = createCanvas(width, height, 'layer' + z);
@@ -52,16 +52,25 @@ export class Layer {
             v.layer = null;
             v.dispose();
         });
-        
+
         this.roots.length = 0;
         this.canvas = this.ctx = null;
     }
 
     render(){
         if(this.dirty){
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.roots.forEach(v => v.draw(this.ctx));
             this.dirty = false;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this._render(0);
+        }
+    }
+
+    private async _render(i: number){
+        const node = this.roots[i++];
+
+        if(node){
+            await node.draw(this.ctx);
+            this._render(i);
         }
     }
 }

@@ -1,11 +1,7 @@
 /**
  * 贝塞尔曲线相关
  */
-import { cached } from "../tool/util";
-
-function isZero(val: number) {
-    return val > -Number.EPSILON && val < Number.EPSILON;
-}
+import { cached, isZero } from "../tool/util";
 
 // 计算杨辉三角第n行的数
 const YHTriangle = cached((n: number) => {

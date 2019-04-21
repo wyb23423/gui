@@ -36,16 +36,16 @@ export interface Istyle {
     borderRadius?: number | number[];
     borderStyle?: number[];
 
-    opctity?: number;
+    opacity?: number;
 
-    width: number | string;
-    height: number | string;
+    width?: number | string;
+    height?: number | string;
 
     rotation?: number;
 
-    scaleX: number;
-    scaleY: number;
-    scale: number | number[];
+    scaleX?: number;
+    scaleY?: number;
+    scale?: number | number[];
 
     left?: number;
     right?: number;
@@ -65,6 +65,7 @@ export const isTransformKey = makeCheckExist(
 
 export class Style {
     background?: string | CanvasGradient;
+    color?: string | CanvasGradient;
 
     border?: number;
     borderColor: string = '#000';
@@ -101,13 +102,13 @@ export class Style {
         }
     }
 
-    build(ctx: CanvasRenderingContext2D){
+    build(ctx: CanvasRenderingContext2D, width: number, height: number){
         if(this.border){
             ctx.setLineDash(this.borderStyle);
             ctx.strokeStyle = this.borderColor;
             ctx.lineWidth = this.border;
         }
-        ctx.globalAlpha = this.opacity;
+        ctx.globalAlpha *= this.opacity;
 
         return new Promise(resolve => {
             if(isImg(this.background)){
@@ -115,7 +116,13 @@ export class Style {
                 img.src = <string>this.background;
                 img.onload = () => {
                     const pattern = ctx.createPattern(img, 'no-repeat');
+                    pattern.setTransform({
+                        a: width / img.width, d: height / img.height,
+                        b: 0, c: 0, e: 0, f: 0
+                    });
                     ctx.fillStyle = pattern;
+
+                    img.src = '';
                     resolve();
                 }
             } else {
@@ -126,6 +133,19 @@ export class Style {
                 resolve();
             }
         })
+    }
+
+    inherit(ctx: CanvasRenderingContext2D, width: number, height: number){
+        ctx.globalAlpha *= this.opacity;
+        if(this.clip){
+            if(this.border){
+                ctx.beginPath();
+                ctx.rect(0, 0, width - this.border / 2, height - this.border / 2);
+                ctx.closePath();
+            }
+
+            ctx.clip();
+        }
     }
 
     private attr([key, value]: [string, any]){

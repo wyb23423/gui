@@ -19,26 +19,18 @@ export class BoundingRect {
         ];
     }
 
-    transform(m: Matrix){
+    transform(m: Matrix,){
         const arr = mul(m.toArray(), this.toArray());
 
-        this.x = Math.min(this.x, ...arr[0]);
-        this.y = Math.min(this.y, ...arr[1]);
-        this.w = Math.max(this.x, ...arr[0]) - this.x;
-        this.h = Math.max(this.y, ...arr[1]) - this.y;
+        this.x = Math.min(...arr[0]);
+        this.y = Math.min(...arr[1]);
+        this.w = Math.max(...arr[0]) - this.x;
+        this.h = Math.max(...arr[1]) - this.y;
 
         return this;
     }
 
     contain(x: number, y: number){
         return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h;
-    }
-
-    createCanvas(){
-        const canvas = document.createElement('canvas');
-        canvas.width = this.w;
-        canvas.height = this.h;
-
-        return canvas;
     }
 }

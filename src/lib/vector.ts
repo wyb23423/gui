@@ -2,9 +2,10 @@
  * 2维向量
  */
 import { Matrix, mul } from "./matrix";
+import { Transform } from "./transform";
 
-export class Vector2 {
-    constructor(public x: number = 0, public y: number = x) { }
+export class Vector2 extends Transform {
+    constructor(public x: number = 0, public y: number = x) { super(); }
 
     /**
      * 使用x及y的最小值创建2维向量
@@ -64,10 +65,13 @@ export class Vector2 {
     }
 
     /** 向量变换, 右乘矩阵 */
-    transform(m: Matrix){
-        const vector = mul(m.toArray(), this.toArray());
+    transform(m: Matrix | number[][]){
+        if(m instanceof Matrix){
+            m = m.toArray()
+        }
+        const vector = mul(m, this.toArray());
         this.x = vector[0][0];
-        this.y = vector[1][1];
+        this.y = vector[1][0];
 
         return this;
     }

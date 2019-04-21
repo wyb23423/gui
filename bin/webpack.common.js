@@ -2,7 +2,7 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-04-14 12:17:51
+ * @Last Modified time: 2019-04-20 22:27:02
 */
 
 'use strict';
@@ -26,6 +26,10 @@ module.exports = {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
                 include: path.resolve(__dirname, '../src')
+            },
+            {
+                test: /\.(png|svg|jpg|gif|jpeg)$/,
+                use: 'url-loader?limit=50000&name=assets/[hash:8].[name].[ext]'
             }
         ]
     },

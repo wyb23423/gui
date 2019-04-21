@@ -63,3 +63,7 @@ export function makeCheckExist(str: string, ignore?: boolean){
         return keys.includes(k);
     }
 }
+
+export function isZero(val: number) {
+    return val > -Number.EPSILON && val < Number.EPSILON;
+}

@@ -1,8 +1,8 @@
 /*
 * @Author: name
 * @Date:   2018-10-21 16:46:20
-* @Last Modified by:   name
-* @Last Modified time: 2018-10-21 19:33:02
+ * @Last Modified by: mikey.zhaopeng
+ * @Last Modified time: 2019-04-20 22:22:46
 */
 
 'use strict';
@@ -17,7 +17,7 @@ module.exports = merge(common, {
     devServer: {
         contentBase: './dist',
         hot: true,
-        historyApiFallback:true
+        historyApiFallback: true
     },
     plugins: [
         new webpack.HotModuleReplacementPlugin()

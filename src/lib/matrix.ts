@@ -1,8 +1,10 @@
 /**
  * 变换矩阵
  */
+import { Transform } from "./transform";
 
-export class Matrix {
+
+export class Matrix extends Transform {
     constructor(
         public a: number = 1, // 水平缩放
         public c: number = 0, // 垂直倾斜
@@ -11,7 +13,9 @@ export class Matrix {
         public b: number = 0, // 水平倾斜
         public d: number = 1, // 垂直缩放
         public f: number = 0 // 垂直位移
-    ) {}
+    ) {
+        super();
+    }
 
      /**
      * 使用2维数组创建变换矩阵
@@ -25,7 +29,7 @@ export class Matrix {
      */
     toUnit(){
         this.a = this.d = 1;
-        this.c = this.e = this.b = this.f = 1;
+        this.c = this.e = this.b = this.f = 0;
 
         return this;
     }
@@ -38,7 +42,7 @@ export class Matrix {
         ]
     }
 
-    transform(m: Matrix | number[][]){
+    transform(m: Matrix | number[][], right?: boolean){
         if(m instanceof Matrix){
             m = m.toArray();
         }
@@ -46,42 +50,15 @@ export class Matrix {
         [
             [this.a, this.c, this.e],
             [this.b, this.d, this.f]
-        ] = mul(m, this.toArray());
+        ] = right ? mul(this.toArray(), m) : mul(m, this.toArray());
 
         return this;
     }
 
-    rotate(rotation: number){
-        if(rotation) {
-            const cos = Math.cos(rotation);
-            const sin = Math.sin(rotation);
-            this.transform(
-                [
-                    [cos, -sin, 0],
-                    [sin, cos, 0],
-                    [0, 0, 1]
-                ]
-            );
-        }
-
-        return this;
-    }
-
-    scale(sx: number, sy: number = sx){
-        if(sx != null && sx !== 1){
-            this.a *= sx;
-        }
-
-        if(sy != null && sx !== 1){
-            this.d *= sy;
-        }
-
-        return this;
-    }
-
-    translate(x: number = 0, y: number = 0){
-        this.e += x;
-        this.f += y;
+    copy(m: Matrix){
+        Object.keys(this).forEach(k => {
+            (<any>this)[k] = (<any>m)[k];
+        });
 
         return this;
     }

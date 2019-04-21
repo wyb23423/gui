@@ -9,8 +9,8 @@ function createId(){
 
 /**
  * 创建canvas
- * @param w 
- * @param h 
+ * @param w
+ * @param h
  */
 export function createCanvas(w: number, h: number, id?: string){
     const canvas = document.createElement('canvas');
