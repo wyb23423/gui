@@ -22,15 +22,24 @@ export class Canvas2DElement {
     width: number = 0;
     height: number = 0;
 
-    private isVisible?: boolean = true;
-    private _cached?: HTMLCanvasElement;
+    private isVisible?: boolean = true; // 是否可见
+    private _cached?: HTMLCanvasElement; // 缓存节点
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
+    protected _isStatic: boolean = false; // 是否使用缓存绘制
+    protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
 
-    constructor(
-        public id: string | number,
-        public isStatic: boolean = false
-    ) {}
+    constructor(public id: string | number, isStatic: boolean = false) {
+        this._isStatic = isStatic;
+    }
+
+    get isStatic(){
+        return this._isStatic;
+    }
+
+    set isStatic(isStatic: boolean){
+        this._isStatic = isStatic;
+    }
 
     dispose() {
         if(this.layer) {
@@ -50,26 +59,22 @@ export class Canvas2DElement {
     }
 
     async draw(ctx: CanvasRenderingContext2D){
-        if(this.isVisible) {
-            this.beforeUpdate();
-            this.getBoundingRect();
-            this.afterUpdate();
+        this.beforeUpdate();
+        this.getBoundingRect();
+        this.afterUpdate();
 
+        if(this._isPaint(ctx.canvas.width, ctx.canvas.height)) {
             ctx.save();
-            this.setTransform(ctx);
 
-            this.beforeBuild();
-
-            if(this.isStatic){
+            if(this._isStatic){
                 if(!this._cached){
-                    const canvas = this._cached = document.createElement('canvas');
-                    canvas.width = this.width;
-                    canvas.height = this.height;
-
-                    await this.build(this._cached.getContext('2d'));
+                    this._cached = await this.buildCached(this.width, this.height, ctx);
+                } else {
+                    this.setTransform(ctx, this._cachedTransform);
                 }
-                ctx.drawImage(this._cached, 0, 0);
+                ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
             } else {
+                this.setTransform(ctx);
                 await this.build(ctx);
             }
             ctx.restore();
@@ -96,19 +101,20 @@ export class Canvas2DElement {
         if(!this.rect) {
             this.update();
 
-            this.rect
-                = new BoundingRect(-this.origin[0], -this.origin[1], this.width, this.height)
-                    .transform(this.transform);
+            this.rect = new BoundingRect(0, 0, this.width, this.height)
+                            .transform(this.transform);
         }
 
         return this.rect;
     };
 
-    setTransform(ctx: CanvasRenderingContext2D){
-        let {a, b, c, d, e, f} = this.transform;
+    setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
+        const {a, b, c, d, e, f} = transform;
 
         ctx.setTransform(a, b, c, d, e, f);
         ctx.translate(this.style.border / 2, this.style.border / 2);
+
+        this.beforeBuild();
     }
 
     /**
@@ -130,7 +136,7 @@ export class Canvas2DElement {
         this._parentWidth = this._getBaseSize('width');
         this._parentHeight = this._getBaseSize('height');
 
-        if(!(this.isStatic && this._cached)){
+        if(!(this._isStatic && this._cached)){
             const width = this.width = this._parseSize(this.style.width, 'width');
             const height = this.height = this._parseSize(this.style.height, 'height');
 
@@ -149,6 +155,20 @@ export class Canvas2DElement {
     build(ctx: CanvasRenderingContext2D) {}
     afterBuild() {}
     // =============================================================
+
+    async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const cachedCtx = canvas.getContext('2d');
+        cachedCtx.save();
+        this.setTransform(cachedCtx);
+        await this.build(cachedCtx);
+        cachedCtx.restore();
+
+        return canvas;
+    }
 
     /**
      * 构建圆角矩形
@@ -251,5 +271,31 @@ export class Canvas2DElement {
         }
 
         return base;
+    }
+
+    private _isPaint(rootWidth: number, rootHeight: number){
+        let isPaint = this.isVisible && this.style.opacity && this.style.scale[0] && this.style.scale[1];
+
+        if(isPaint) {
+            const clipRect = this._getClipRect();
+            if(clipRect){
+                return this.rect.intersect(clipRect);
+            }
+
+            return this.rect.intersect(0, 0, rootWidth, rootHeight);
+        }
+
+        return false;
+    }
+
+    private _getClipRect(){
+        let parent = this.parent;
+        while(parent){
+            if(parent.style.clip){
+                return parent.rect;
+            }
+
+            parent = parent.parent;
+        }
     }
 }

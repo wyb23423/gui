@@ -48,7 +48,7 @@ controls[2].attr({
     border: 10,
     borderColor: '#99f',
     rotation: Math.PI / 3,
-    scale: 1.4
+    scale: 2,
 });
 controls[0].add(controls[2].add(controls[1]));
 

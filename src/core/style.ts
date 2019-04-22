@@ -47,10 +47,10 @@ export interface Istyle {
     scaleY?: number;
     scale?: number | number[];
 
-    left?: number;
-    right?: number;
-    top?: number;
-    bottom?: number;
+    left?: number | string;
+    right?: number | string;
+    top?: number | string;
+    bottom?: number | string;
 
     origin?: number | number[];
     originX?: number;
@@ -138,15 +138,9 @@ export class Style {
     /**
      * 设置继承样式
      */
-    inherit(ctx: CanvasRenderingContext2D, width: number, height: number){
+    inherit(ctx: CanvasRenderingContext2D){
         ctx.globalAlpha *= this.opacity;
         if(this.clip){
-            if(this.border){
-                ctx.beginPath();
-                ctx.rect(this.border / 2, this.border / 2, width - this.border, height - this.border);
-                ctx.closePath();
-            }
-
             ctx.clip();
         }
     }

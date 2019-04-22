@@ -3,6 +3,12 @@ import { Matrix } from "./matrix";
 export class Transform {
     transform(m: Matrix | number[][]){}
 
+    copy(source: Transform){
+        Object.assign(this, source);
+
+        return this;
+    }
+
     rotate(rotation: number){
         if(rotation) {
             const cos = Math.cos(rotation);

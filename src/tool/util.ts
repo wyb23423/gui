@@ -43,7 +43,7 @@ export function clone(obj: any){
     }
 }
 
-const imgReg = /\.(jpg|png|gif|jpeg|)/i;
+const imgReg = /\.(jpg|png|gif|jpeg)$/i;
 export function isImg(str: any){
     if(typeof str === 'string'){
         return imgReg.test(str);
@@ -52,8 +52,16 @@ export function isImg(str: any){
     return false;
 }
 
+/**
+ * 创建一个检测一个字符串是否在一系列字符串内的函数+
+ * @param str 用于检测的系列字符串组成的字符串，以空格分隔
+ * @param ignore 是否忽略大小写
+ */
 export function makeCheckExist(str: string, ignore?: boolean){
-    const keys = str.split(' ');
+    let keys = str.split(' ');
+    if(ignore){
+        keys = keys.map(v => v.toLowerCase());
+    }
 
     return function(k: string){
         if(ignore) {
@@ -64,6 +72,23 @@ export function makeCheckExist(str: string, ignore?: boolean){
     }
 }
 
+/**
+ * 判断一个数值是否是0, 误差为Number.EPSILON
+ */
 export function isZero(val: number) {
     return val > -Number.EPSILON && val < Number.EPSILON;
+}
+
+/**
+ * 获取闭区间[min, max]内的随机整数, 四舍五入
+ * 若max < min则闭区间为[max, min]
+ */
+export function randomInt(min: number, max: number){
+    if(max === min) return Math.round(max);
+
+    if(max < min) {
+        [min, max] = [max, min];
+    }
+
+    return Math.round(Math.random() * (max - min) + min);
 }

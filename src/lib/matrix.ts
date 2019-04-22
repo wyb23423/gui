@@ -54,14 +54,6 @@ export class Matrix extends Transform {
 
         return this;
     }
-
-    copy(m: Matrix){
-        Object.keys(this).forEach(k => {
-            (<any>this)[k] = (<any>m)[k];
-        });
-
-        return this;
-    }
 }
 
 /**

@@ -4,9 +4,15 @@
 
 import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
+import { Matrix } from "../lib/matrix";
 
 export class Container extends Canvas2DElement {
     children: Canvas2DElement[] = [];
+
+    set isStatic(isStatic: boolean){
+        this._isStatic = isStatic;
+        this.children.forEach(v => v.isStatic = isStatic);
+    }
 
     attr(key: string | Istyle, value?: any){
         super.attr(key, value);
@@ -17,8 +23,9 @@ export class Container extends Canvas2DElement {
     }
 
     async build(ctx: CanvasRenderingContext2D){
-        const width = this.width - this.style.border;
-        const height = this.height - this.style.border;
+        const border = this.style.border;
+        const width = this.width - border;
+        const height = this.height - border;
 
         ctx.beginPath();
         if(this.style.borderRadius){
@@ -30,20 +37,24 @@ export class Container extends Canvas2DElement {
 
         await this.style.build(ctx, width, height);
 
+        if(border){
+            ctx.stroke();
+
+            if(this.style.background){
+                ctx.beginPath();
+                ctx.rect(border / 2, border / 2, width - border, height - border);
+                ctx.closePath();
+            }
+        }
+
         if(this.style.background){
             ctx.fill();
-        }
-        if(this.style.border){
-            ctx.stroke();
         }
 
         ctx.restore();
 
         ctx.save();
-        if(this.style.clip) {
-            this.setTransform(ctx);
-        }
-        this.style.inherit(ctx, width, height);
+        this.style.inherit(ctx);
 
         return this._renderChildren(ctx);
     }
@@ -82,6 +93,14 @@ export class Container extends Canvas2DElement {
         super.dispose();
         this.children.forEach(v => v.dispose());
         this.children.length = 0;
+    }
+
+    async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D){
+        this.children.forEach(v => v.isStatic = false);
+
+        this._cachedTransform = new Matrix();
+
+        return super.buildCached(ctx.canvas.width, ctx.canvas.height, ctx);
     }
 
     private _renderChildren(ctx: CanvasRenderingContext2D){

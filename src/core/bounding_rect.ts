@@ -33,4 +33,30 @@ export class BoundingRect {
     contain(x: number, y: number){
         return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h;
     }
+
+    intersect(
+        x: BoundingRect | number = 0,
+        y: number = 0,
+        w: number = 0,
+        h: number = 0
+    ) {
+        if(x instanceof BoundingRect){
+            y = x.y;
+            w = x.w;
+            h = x.h;
+            x = x.x;
+        }
+
+        const ax0 = this.x;
+        const ax1 = this.x + this.w;
+        const ay0 = this.y;
+        const ay1 = this.y + this.h;
+
+        const bx0 = x;
+        const bx1 = x + w;
+        const by0 = y;
+        const by1 = y + h;
+
+        return !(ax1 < bx0 || bx1 < ax0 || ay1 < by0 || by1 < ay0);
+    }
 }

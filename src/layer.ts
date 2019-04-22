@@ -6,10 +6,11 @@ import { createCanvas } from "./core/dom";
 
 export class Layer {
     canvas?: HTMLCanvasElement;
-    dirty: boolean = true;
+    dirty: boolean = true; // 是否需要绘制
 
     private roots: Canvas2DElement[] = [];
-    private ctx?: CanvasRenderingContext2D;;
+    private ctx?: CanvasRenderingContext2D;
+    private _time: number = 0; // 最近一次绘制开始时间
 
     constructor(width: number, height: number, public z: number = 0) {
         this.canvas = createCanvas(width, height, 'layer' + z);
@@ -60,6 +61,7 @@ export class Layer {
     render(){
         if(this.dirty){
             this.dirty = false;
+            this._time = Date.now();
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this._render(0);
         }
@@ -69,8 +71,12 @@ export class Layer {
         const node = this.roots[i++];
 
         if(node){
-            await node.draw(this.ctx);
-            this._render(i);
+            if(Date.now() - this._time > 15){
+                this.dirty = true;
+            } else {
+                await node.draw(this.ctx);
+                this._render(i);
+            }
         }
     }
 }
