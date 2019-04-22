@@ -28,7 +28,7 @@ controls[0].attr({
     border: 10,
     borderColor: '#ccc',
     // origin: [0, 0],
-    clip: true
+    // clip: true
 });
 controls[1].attr({
     width: 20,
@@ -54,3 +54,11 @@ controls[0].add(controls[2].add(controls[1]));
 
 layer0.add(controls[0]);
 engine.render();
+
+root.addEventListener('click', event => {
+    const rect = root.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    console.log(layer0.getTarget(x, y));
+})

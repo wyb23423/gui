@@ -27,13 +27,7 @@ export class Container extends Canvas2DElement {
         const width = this.width - border;
         const height = this.height - border;
 
-        ctx.beginPath();
-        if(this.style.borderRadius){
-            this.buildRadiusPath(ctx);
-        } else {
-            ctx.rect(0, 0, width, height);
-        }
-        ctx.closePath();
+        this.buildPath(ctx, width, height);
 
         await this.style.build(ctx, width, height);
 
@@ -57,6 +51,16 @@ export class Container extends Canvas2DElement {
         this.style.inherit(ctx);
 
         return this._renderChildren(ctx);
+    }
+
+    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){
+        ctx.beginPath();
+        if(this.style.borderRadius){
+            this.buildRadiusPath(ctx, width, height);
+        } else {
+            ctx.rect(0, 0, width, height);
+        }
+        ctx.closePath();
     }
 
     remove(el: Canvas2DElement, dispose: boolean = true){
@@ -103,12 +107,28 @@ export class Container extends Canvas2DElement {
         return super.buildCached(ctx.canvas.width, ctx.canvas.height, ctx);
     }
 
+    getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
+        if(this._contain(ctx, x, y)){
+            for(let i=this.children.length - 1; i>=0; i--){
+                const traget = this.children[i].getTarget(ctx, x, y);
+
+                if(traget) {
+                    return traget;
+                }
+            }
+
+            return <Canvas2DElement>this;
+        }
+
+        return false;
+    }
+
     private _renderChildren(ctx: CanvasRenderingContext2D){
-        const arr = Array.from(this.children).sort((a, b) => a.style.zIndex - b.style.zIndex);
+        this.children.sort((a, b) => a.style.zIndex - b.style.zIndex);
 
         return new Promise(resolve => {
             const _render = async (i: number) => {
-                const node = arr[i++];
+                const node = this.children[i++];
                 if(node){
                     await node.draw(ctx);
                     _render(i);

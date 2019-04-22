@@ -8,6 +8,7 @@ import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { isZero } from "../tool/util";
+import { Vector2 } from "../lib/vector";
 
 export class Canvas2DElement {
     transform = new Matrix();
@@ -26,6 +27,7 @@ export class Canvas2DElement {
     private _cached?: HTMLCanvasElement; // 缓存节点
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
+    private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
     protected _isStatic: boolean = false; // 是否使用缓存绘制
     protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
 
@@ -108,15 +110,6 @@ export class Canvas2DElement {
         return this.rect;
     };
 
-    setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
-        const {a, b, c, d, e, f} = transform;
-
-        ctx.setTransform(a, b, c, d, e, f);
-        ctx.translate(this.style.border / 2, this.style.border / 2);
-
-        this.beforeBuild();
-    }
-
     /**
      * 标记节点所在的层需要重绘
      */
@@ -130,7 +123,9 @@ export class Canvas2DElement {
     }
 
     // ========================钩子函数
-    beforeUpdate() {}
+    beforeUpdate() {
+        this._ignore = true;
+    }
 
     update(){
         this._parentWidth = this._getBaseSize('width');
@@ -153,7 +148,9 @@ export class Canvas2DElement {
 
     beforeBuild() {}
     build(ctx: CanvasRenderingContext2D) {}
-    afterBuild() {}
+    afterBuild() {
+        this._ignore = false;
+    }
     // =============================================================
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
@@ -171,12 +168,37 @@ export class Canvas2DElement {
     }
 
     /**
+     * 仅创建路径, 不绘制, 可用于检测一个点是否在节点内部
+     */
+    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){}
+
+    getTarget(ctx: CanvasRenderingContext2D, x: number, y: number){
+        if(this._contain(ctx, x, y)){
+            return <Canvas2DElement>this;
+        }
+
+        return false;
+    }
+
+    /**
+     * 检测一个点是否落在此节点上
+     */
+    protected _contain(ctx: CanvasRenderingContext2D, x: number, y: number){
+        if(this._ignore || !this.rect.contain(x, y)) {
+            return false;
+        }
+
+        ctx.setTransform(this.transform);
+        this.buildPath(ctx, this.width, this.height);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        return ctx.isPointInPath(x, y);
+    }
+
+    /**
      * 构建圆角矩形
      */
-    protected buildRadiusPath(ctx: CanvasRenderingContext2D){
-        const w = this.width - this.style.border;
-        const h = this.height - this.style.border;
-
+    protected buildRadiusPath(ctx: CanvasRenderingContext2D, w: number, h: number){
         let circleCount: number = 0;
         const radius = this.style.borderRadius.map((v, i) => {
             const base = i % 2 ? h : w;
@@ -203,6 +225,15 @@ export class Canvas2DElement {
             ctx.arcTo(w, h, 0, h, radius[2]);
             ctx.arcTo(0, h, 0, 0, radius[3]);
         }
+    }
+
+    private setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
+        const {a, b, c, d, e, f} = transform;
+
+        ctx.setTransform(a, b, c, d, e, f);
+        ctx.translate(this.style.border / 2, this.style.border / 2);
+
+        this.beforeBuild();
     }
 
     private _updateTransform(){

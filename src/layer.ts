@@ -61,10 +61,25 @@ export class Layer {
     render(){
         if(this.dirty){
             this.dirty = false;
+
             this._time = Date.now();
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            this.roots.sort((a, b) => a.style.zIndex - b.style.zIndex);
             this._render(0);
         }
+    }
+
+    getTarget(x: number, y: number){
+        for(let i=this.roots.length - 1; i>=0; i--){
+            const traget = this.roots[i].getTarget(this.ctx, x, y);
+
+            if(traget) {
+                return traget;
+            }
+        }
+
+        return false;
     }
 
     private async _render(i: number){
