@@ -2,15 +2,16 @@
  * 节点基类
  */
 
-import { Matrix, mul } from "../lib/matrix";
+import { Matrix } from "../lib/matrix";
 import { Layer } from "../layer";
 import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { isZero } from "../tool/util";
-import { Vector2 } from "../lib/vector";
 
 export class Canvas2DElement {
+    readonly type: string = 'element';
+
     transform = new Matrix();
     parent?: Container;
     layer?: Layer;
@@ -28,6 +29,7 @@ export class Canvas2DElement {
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
+    private _dirty: boolean = true;
     protected _isStatic: boolean = false; // 是否使用缓存绘制
     protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
 
@@ -45,24 +47,27 @@ export class Canvas2DElement {
 
     dispose() {
         if(this.layer) {
-            this.layer.remove(this);
+            this.layer.remove(this, false);
         }
 
         if(this.parent){
-            this.parent.remove(this);
+            this.parent.remove(this, false);
         }
+
+        this.style.dispose();
 
         this._cached
         = this.rect
         = this.transform
         = this.style
         = this.layer
-        = this.parent = null;
+        = this.parent
+        = this.style = null;
     }
 
     async draw(ctx: CanvasRenderingContext2D){
         this.beforeUpdate();
-        this.getBoundingRect();
+        await this.getBoundingRect();
         this.afterUpdate();
 
         if(this._isPaint(ctx.canvas.width, ctx.canvas.height)) {
@@ -89,19 +94,35 @@ export class Canvas2DElement {
      * 设置节点样式
      */
     attr(key: string | Istyle, value?: any){
-        if(this.style.set(key, value)){
-            this.rect = null;
+        if(typeof key === 'string') {
+            key = {[key]: value};
         }
 
-        this.markDirty();
+        let isEqual: boolean = true;
+        for(const [k, v] of Object.entries(key)){
+            if(!this.style.equal(k, v)) {
+                isEqual = false;
+                break;
+            }
+        }
+
+        if(!isEqual) {
+            if(this.style.set(key, value)){
+                this.rect = null;
+            }
+
+            this.markDirty();
+        }
+
+        return this;
     }
 
     /**
      * 获取节点AABB类包围盒
      */
-    getBoundingRect() {
+    async getBoundingRect() {
         if(!this.rect) {
-            this.update();
+            await this.update();
 
             this.rect = new BoundingRect(0, 0, this.width, this.height)
                             .transform(this.transform);
@@ -114,11 +135,14 @@ export class Canvas2DElement {
      * 标记节点所在的层需要重绘
      */
     markDirty(){
-        if(this.parent){
-            this.parent.markDirty();
-        }
-        if(this.layer){
-            this.layer.dirty = true;
+        if(!this._dirty) {
+            this._dirty = true;
+            if(this.parent){
+                this.parent.markDirty();
+            }
+            if(this.layer){
+                this.layer.dirty = true;
+            }
         }
     }
 
@@ -127,7 +151,7 @@ export class Canvas2DElement {
         this._ignore = true;
     }
 
-    update(){
+    async update(){
         this._parentWidth = this._getBaseSize('width');
         this._parentHeight = this._getBaseSize('height');
 
@@ -135,7 +159,7 @@ export class Canvas2DElement {
             const width = this.width = this._parseSize(this.style.width, 'width');
             const height = this.height = this._parseSize(this.style.height, 'height');
 
-            this.style.border = Math.min(this.style.border || 0, width / 2, height / 2);
+            this.style.border = Math.min(this.style.border, width / 2, height / 2);
 
             this.origin[0] = this.style.origin[0] * width;
             this.origin[1] = this.style.origin[1] * height;
@@ -144,7 +168,9 @@ export class Canvas2DElement {
         this._updateTransform();
     }
 
-    afterUpdate(){}
+    afterUpdate(){
+        this._dirty = false;
+    }
 
     beforeBuild() {}
     build(ctx: CanvasRenderingContext2D) {}
@@ -170,7 +196,11 @@ export class Canvas2DElement {
     /**
      * 仅创建路径, 不绘制, 可用于检测一个点是否在节点内部
      */
-    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){}
+    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){
+        ctx.beginPath();
+        ctx.rect(0, 0, width, height);
+        ctx.closePath();
+    }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number){
         if(this._contain(ctx, x, y)){
@@ -305,9 +335,14 @@ export class Canvas2DElement {
     }
 
     private _isPaint(rootWidth: number, rootHeight: number){
-        let isPaint = this.isVisible && this.style.opacity && this.style.scale[0] && this.style.scale[1];
-
-        if(isPaint) {
+        if(
+            this.isVisible
+            && this.style.opacity
+            && this.style.scale[0]
+            && this.style.scale[1]
+            && this.width >= 0
+            && this.height >= 0
+        ) {
             const clipRect = this._getClipRect();
             if(clipRect){
                 return this.rect.intersect(clipRect);

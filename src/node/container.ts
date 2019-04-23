@@ -5,8 +5,11 @@
 import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
 import { Matrix } from "../lib/matrix";
+import { findIndexByBinary } from "../tool/util";
 
 export class Container extends Canvas2DElement {
+    readonly type: string = 'container';
+
     children: Canvas2DElement[] = [];
 
     set isStatic(isStatic: boolean){
@@ -20,6 +23,8 @@ export class Container extends Canvas2DElement {
         if(!this.rect){
             this.children.forEach(v => v.rect = null);
         }
+
+        return this;
     }
 
     async build(ctx: CanvasRenderingContext2D){
@@ -87,7 +92,11 @@ export class Container extends Canvas2DElement {
         el.rect = null;
         el.parent = this;
 
-        this.children.push(el);
+        const index = findIndexByBinary(
+            mid => el.style.zIndex - this.children[mid].style.zIndex,
+            this.children.length
+        );
+        this.children.splice(index, 0, el);
         this.markDirty();
 
         return this;
@@ -124,8 +133,6 @@ export class Container extends Canvas2DElement {
     }
 
     private _renderChildren(ctx: CanvasRenderingContext2D){
-        this.children.sort((a, b) => a.style.zIndex - b.style.zIndex);
-
         return new Promise(resolve => {
             const _render = async (i: number) => {
                 const node = this.children[i++];

@@ -46,8 +46,7 @@ export class Engine {
     replaceLayer(layer: Layer){
         const old = this._layers.get(layer.z);
         if(old){
-            this._root.removeChild(old.canvas);
-            old.dispose();
+            old.dispose(this._root);
         }
         this._addLayerToDom(layer)._layers.set(layer.z, layer);
 
@@ -58,8 +57,7 @@ export class Engine {
         const z: number = typeof layer === 'number' ? layer : layer.z;
         const curLayer = this._layers.get(z);
         if(curLayer){
-            this._root.removeChild(curLayer.canvas);
-            curLayer.dispose();
+            curLayer.dispose(this._root);
             this._layers.delete(z);
         }
 

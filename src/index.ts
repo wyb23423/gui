@@ -1,5 +1,6 @@
 import { Engine } from "./engine";
 import { Container } from "./node/container";
+import { Canvas2DImage } from "./node/image";
 
 const root = document.createElement('div');
 root.style.width = '100%';
@@ -50,7 +51,14 @@ controls[2].attr({
     rotation: Math.PI / 3,
     scale: 2,
 });
-controls[0].add(controls[2].add(controls[1]));
+const img = new Canvas2DImage(11);
+img.attr({
+    src: require('./assets/1.jpg'),
+    width: '100%',
+    height: '100%'
+});
+
+controls[0].add(controls[2].add(img));
 
 layer0.add(controls[0]);
 engine.render();

@@ -4,6 +4,7 @@
  * 样式
  */
 import { isImg, makeCheckExist } from "../tool/util";
+import { getImg, disposeImg } from "./resource";
 
 /**
  * 将数据解析为有4个元素的数组
@@ -30,6 +31,8 @@ export interface Istyle {
     background?: string | CanvasGradient;
     color?: string | CanvasGradient;
     clip?: boolean;
+
+    src?: string;
 
     border?: number;
     borderColor?: string | CanvasGradient;
@@ -67,7 +70,9 @@ export class Style {
     background?: string | CanvasGradient;
     color?: string | CanvasGradient;
 
-    border?: number;
+    src?: string; // 图片路径
+
+    border: number = 0;
     borderColor: string = '#000';
     borderRadius?: number[];
     borderStyle: number[] = [];
@@ -92,17 +97,22 @@ export class Style {
 
     origin: number[] = [0.5, 0.5];
 
+    private _res: Set<string> = new Set(); // 节点已加载过的图片资源
+
     set(key: string | Istyle, value: any){
         if(typeof key === 'string'){
-            this.attr([key, value]);
-
-            return isTransformKey(key);
+            return this.attr([key, value]);
         } else {
             return Object.entries(key).map(this.attr, this).includes(true);
         }
     }
 
-    build(ctx: CanvasRenderingContext2D, width: number, height: number){
+    /**
+     * 根据样式设置绘制状态
+     * @param width 节点的宽
+     * @param height 节点的高
+     */
+    async build(ctx: CanvasRenderingContext2D, width: number, height: number){
         if(this.border){
             ctx.setLineDash(this.borderStyle);
             ctx.strokeStyle = this.borderColor;
@@ -110,29 +120,20 @@ export class Style {
         }
         ctx.globalAlpha *= this.opacity;
 
-        return new Promise(resolve => {
-            if(isImg(this.background)){
-                const img = new Image();
-                img.src = <string>this.background;
-                img.onload = () => {
-                    const pattern = ctx.createPattern(img, 'no-repeat');
-                    pattern.setTransform({
-                        a: width / img.width, d: height / img.height,
-                        b: 0, c: 0, e: 0, f: 0
-                    });
-                    ctx.fillStyle = pattern;
+        if(this.background) {
+            if(isImg(this.background)) {
+                const path = <string>this.background;
+                const img = await this.loadImg(path);
 
-                    img.src = '';
-                    resolve();
-                }
+                const pattern = ctx.createPattern(img, 'no-repeat');
+                pattern.setTransform({
+                    a: width / img.width, d: height / img.height,
+                    b: 0, c: 0, e: 0, f: 0
+                });
             } else {
-                if(this.background) {
-                    ctx.fillStyle = this.background;
-                }
-
-                resolve();
+                ctx.fillStyle = this.background;
             }
-        })
+        }
     }
 
     /**
@@ -145,7 +146,61 @@ export class Style {
         }
     }
 
+    dispose(){
+        this._res.forEach(disposeImg);
+        this._res.clear();
+    }
+
+    /**
+     * 判断新值与旧值是否相等
+     */
+    equal(key: string, value: any){
+        let old = Reflect.get(this, key);
+        if(old == null) {
+            old = Reflect.get(this, key.substr(0, key.length - 1));
+        }
+
+        if(Array.isArray(old)) {
+            if(Array.isArray(value)) {
+                return old.every((v, i) => v === value[i]);
+            }
+
+            if(key.endsWith('X')) {
+                return old[0] === value;
+            }
+
+            if(key.endsWith('Y')){
+                return old[1] === value;
+            }
+
+            return old.every(v => v === value);
+        }
+
+        return old === value;
+    }
+
+    loadImg(src:string = this.src) {
+        const isFirst = !this._res.has(src);
+        this._res.add(src);
+
+        return getImg(src, isFirst);
+    }
+
     private attr([key, value]: [string, any]){
+        let isModifyTransform = isTransformKey(key);
+        if(isModifyTransform) {
+            isModifyTransform = isModifyTransform && this.equal(key, value);
+        }
+
+        // 替换资源，释放原有的资源
+        if(key === 'src' || key === 'background') {
+            const old = Reflect.get(this, key);
+            if(isImg(old) && old !== value) {
+                disposeImg(old);
+                this._res.delete(old);
+            }
+        }
+
         switch(key){
             case 'borderRadius':
                 this[key] = parseNumArr(value);
@@ -160,6 +215,6 @@ export class Style {
             default: Reflect.set(this, key, value);
         }
 
-        return isTransformKey(key);
+        return isModifyTransform;
     }
 }

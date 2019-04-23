@@ -3,6 +3,7 @@
  */
 import { Canvas2DElement } from "./node/element";
 import { createCanvas } from "./core/dom";
+import { findIndexByBinary } from "./tool/util";
 
 export class Layer {
     canvas?: HTMLCanvasElement;
@@ -24,7 +25,11 @@ export class Layer {
             }
 
             el.layer = this;
-            this.roots.push(el);
+            const index = findIndexByBinary(
+                mid => el.style.zIndex - this.roots[mid].style.zIndex,
+                this.roots.length
+            );
+            this.roots.splice(index, 0, el);
 
             this.dirty = true;
         }
@@ -48,13 +53,16 @@ export class Layer {
         return this;
     }
 
-    dispose(){
+    dispose(dom: HTMLElement){
         this.roots.forEach(v => {
             v.layer = null;
             v.dispose();
         });
-
         this.roots.length = 0;
+
+        if(dom) {
+            dom.removeChild(this.canvas);
+        }
         this.canvas = this.ctx = null;
     }
 
@@ -64,8 +72,6 @@ export class Layer {
 
             this._time = Date.now();
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-            this.roots.sort((a, b) => a.style.zIndex - b.style.zIndex);
             this._render(0);
         }
     }

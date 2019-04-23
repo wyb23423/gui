@@ -92,3 +92,25 @@ export function randomInt(min: number, max: number){
 
     return Math.round(Math.random() * (max - min) + min);
 }
+
+/**
+ * 二分法查找插入位置
+ * @param compare 比较函数, 返回值<=0时, 插入位置<=mid, 反之>mid
+ * @param len 数组长度
+ */
+export function findIndexByBinary(compare: (mid: number) => number, len: number) {
+    let low = 0, high = len - 1, mid = 0;
+    while(low <= high){
+        mid = Math.floor((high + low) / 2);
+        const res = compare(mid);
+        if(res < 0){
+            high = mid - 1;
+        } else if(res > 0){
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return low;
+}
