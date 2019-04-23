@@ -29,7 +29,7 @@ controls[0].attr({
     border: 10,
     borderColor: '#ccc',
     // origin: [0, 0],
-    // clip: true
+    clip: true
 });
 controls[1].attr({
     width: 20,
@@ -50,12 +50,14 @@ controls[2].attr({
     borderColor: '#99f',
     rotation: Math.PI / 3,
     scale: 2,
+    // clip: true
 });
 const img = new Canvas2DImage(11);
 img.attr({
     src: require('./assets/1.jpg'),
-    width: '100%',
-    height: '100%'
+    width: 102.4,
+    height: 64,
+    rotation: -Math.PI * 7 / 12
 });
 
 controls[0].add(controls[2].add(img));

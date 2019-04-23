@@ -162,6 +162,10 @@ export class Style {
 
         if(Array.isArray(old)) {
             if(Array.isArray(value)) {
+                if(key === 'borderStyle' && old.length !== value.length) {
+                    return false;
+                }
+
                 return old.every((v, i) => v === value[i]);
             }
 

@@ -60,9 +60,7 @@ export class Layer {
         });
         this.roots.length = 0;
 
-        if(dom) {
-            dom.removeChild(this.canvas);
-        }
+        dom.removeChild(this.canvas);
         this.canvas = this.ctx = null;
     }
 

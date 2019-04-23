@@ -24,14 +24,21 @@ export class Canvas2DElement {
     width: number = 0;
     height: number = 0;
 
-    private isVisible?: boolean = true; // 是否可见
-    private _cached?: HTMLCanvasElement; // 缓存节点
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
+
+    private isVisible: boolean = true; // 是否可见
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
+
+    private _checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
+
     private _dirty: boolean = true;
-    protected _isStatic: boolean = false; // 是否使用缓存绘制
+
+    private _cached?: HTMLCanvasElement; // 缓存节点
     protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
+
+    protected _isStatic: boolean = false; // 是否使用缓存绘制
+
 
     constructor(public id: string | number, isStatic: boolean = false) {
         this._isStatic = isStatic;
@@ -175,6 +182,7 @@ export class Canvas2DElement {
     beforeBuild() {}
     build(ctx: CanvasRenderingContext2D) {}
     afterBuild() {
+        this._checkedPoint.clear();
         this._ignore = false;
     }
     // =============================================================
@@ -212,17 +220,46 @@ export class Canvas2DElement {
 
     /**
      * 检测一个点是否落在此节点上
+     * 未落在父节点上的点全视为未落在此节点上(减少遍历检测的次数)
      */
     protected _contain(ctx: CanvasRenderingContext2D, x: number, y: number){
-        if(this._ignore || !this.rect.contain(x, y)) {
+        if(this._ignore) {
             return false;
+        }
+
+        const pk: string = `${x}_${y}`;
+        if(this._checkedPoint.has(pk)) {
+            return this._checkedPoint.get(pk);
+        }
+
+        if(!this.rect.contain(x, y)) {
+            this._checkedPoint.set(pk, false);
+            return false;
+        }
+
+        const clipParent = this._getClipParent();
+        if(clipParent) {
+            const border = clipParent.style.border;
+
+            ctx.setTransform(clipParent.transform);
+            ctx.translate(border, border);
+            clipParent.buildPath(ctx, clipParent.width - border * 2, clipParent.height - border * 2);
+
+            if(!ctx.isPointInPath(x, y)) {
+                this._checkedPoint.set(pk, false);
+
+                return false;
+            }
         }
 
         ctx.setTransform(this.transform);
         this.buildPath(ctx, this.width, this.height);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-        return ctx.isPointInPath(x, y);
+        const result = ctx.isPointInPath(x, y);
+        this._checkedPoint.set(pk, result);
+
+        return result;
     }
 
     /**
@@ -343,9 +380,9 @@ export class Canvas2DElement {
             && this.width >= 0
             && this.height >= 0
         ) {
-            const clipRect = this._getClipRect();
-            if(clipRect){
-                return this.rect.intersect(clipRect);
+            const clipParent = this._getClipParent();
+            if(clipParent){
+                return this.rect.intersect(clipParent.rect);
             }
 
             return this.rect.intersect(0, 0, rootWidth, rootHeight);
@@ -354,11 +391,11 @@ export class Canvas2DElement {
         return false;
     }
 
-    private _getClipRect(){
+    private _getClipParent(){
         let parent = this.parent;
         while(parent){
             if(parent.style.clip){
-                return parent.rect;
+                return parent;
             }
 
             parent = parent.parent;
