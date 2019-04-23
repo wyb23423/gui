@@ -4,7 +4,7 @@
  * 样式
  */
 import { isImg, makeCheckExist } from "../tool/util";
-import { getImg, disposeImg } from "./resource";
+import { getImg, disposeImg, DEFAULT_SRC } from "./resource";
 
 /**
  * 将数据解析为有4个元素的数组
@@ -184,6 +184,12 @@ export class Style {
     }
 
     loadImg(src:string = this.src) {
+        if(!isImg(src)) {
+            console.warn(`${src}不是有效的图片路径`);
+
+            src = DEFAULT_SRC;
+        }
+
         const isFirst = !this._res.has(src);
         this._res.add(src);
 

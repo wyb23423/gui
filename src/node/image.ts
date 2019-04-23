@@ -13,15 +13,12 @@ export class Canvas2DImage extends Canvas2DElement {
         this.style.width = this.style.height = 0; // 清除默认宽高设置
     }
 
-    async build(ctx: CanvasRenderingContext2D){
+    async build(ctx: CanvasRenderingContext2D) {
         ctx.drawImage(await this.style.loadImg(), 0, 0, this.width, this.height);
     }
 
     async update(){
         const style = this.style;
-        if(!isImg(style.src)) {
-            return console.warn(`${style.src}不是有效的图片路径`);
-        }
 
         // 图片尺寸默认为其原尺寸
         let img: HTMLImageElement;

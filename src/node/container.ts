@@ -104,7 +104,11 @@ export class Container extends Canvas2DElement {
 
     dispose(){
         super.dispose();
-        this.children.forEach(v => v.dispose());
+
+        this.children.forEach(v => {
+            v.parent = null;
+            v.dispose();
+        });
         this.children.length = 0;
     }
 
