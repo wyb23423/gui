@@ -5,6 +5,7 @@
 import { Vector2 } from "../lib/vector";
 import * as bbox from '../lib/bbox';
 import { BoundingRect } from "./bounding_rect";
+import { ellipse } from "./dom";
 
 // =====================================
 enum CMD {
@@ -100,7 +101,7 @@ export class Path {
         this.addData(CMD.A, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise);
 
         if(this._ctx){
-            this._arc(this._ctx, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise)
+            ellipse(this._ctx, c[0], c[1], r[0], r[1], startAngle, endAngle, rotation, anticlockwise)
         }
 
         return this;
@@ -265,7 +266,7 @@ export class Path {
                     ctx.quadraticCurveTo(data[i++], data[i++], data[i++], data[i++]);
                     break;
                 case CMD.A:
-                    this._arc(
+                    ellipse(
                         ctx,
                         data[i++], data[i++], // 圆心
                         data[i++], data[i++], // 半轴长
@@ -319,32 +320,6 @@ export class Path {
         if(Array.isArray(data)){
             data.length = this._len;
             this.data = new Float32Array(data);
-        }
-    }
-
-    // 画一个圆弧
-    private _arc(
-        ctx: CanvasRenderingContext2D,
-        cx: number, cy: number,
-        rx: number, ry: number,
-        startAngle: number, endAngle: number,
-        rotation: number,
-        anticlockwise: number,
-    ){
-        if(Math.abs(rx - ry) > Number.EPSILON * 2 ** 10){ // 椭圆
-            ctx.save();
-
-            const scaleX = rx > ry ? 1 : rx / ry;
-            const scaleY = rx > ry ? ry / rx : 1;
-
-            ctx.translate(cx, cy);
-            ctx.rotate(rotation);
-            ctx.scale(scaleX, scaleY);
-            ctx.arc(0, 0, Math.max(rx, ry), startAngle, endAngle, !anticlockwise);
-
-            ctx.restore();
-        } else {
-            ctx.arc(cx, cy, rx, startAngle, endAngle, !anticlockwise);
         }
     }
 }

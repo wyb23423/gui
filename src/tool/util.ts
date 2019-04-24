@@ -1,17 +1,24 @@
+import { join } from "path";
+
 /// <reference lib="es2017.object" />
 
 /**
  * 创建一个纯函数的缓存版本
  */
-export function cached<P, T>(fn: (arg: P) => T): (arg: P) => T {
+export function cached<T>(fn: (...arg: any[]) => T, maxSize?: number): (...arg: any[]) => T {
     const cache:Map<any, any> = new Map();
 
-    return (arg: any) => {
-        if(!cache.has(arg)){
-            cache.set(arg, fn(arg));
+    return (...arg: any[]) => {
+        const key = arg.join(':');
+
+        if(!cache.has(key)) {
+            if(maxSize && cache.size >= maxSize) {
+                cache.clear();
+            }
+            cache.set(key, fn.apply(null, arg));
         }
 
-        return cache.get(arg);
+        return cache.get(key);
     }
 }
 

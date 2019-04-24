@@ -19,9 +19,10 @@ export class Layer {
     }
 
     add(el: Canvas2DElement){
-        if(el.layer !== this){
-            if(el.layer) {
-                el.layer.remove(el, false).dirty = true;
+        const parent = el.parent || el.layer;
+        if(parent !== this){
+            if(parent) {
+                parent.remove(el, false);
             }
 
             el.layer = this;
@@ -40,7 +41,7 @@ export class Layer {
     remove(el: Canvas2DElement, dispose: boolean = true){
         const i: number = this.roots.findIndex(v => v === el);
         if(i >= 0) {
-            el.layer = null;
+            el.layer = el.rect = null;
             this.roots.splice(i, 0);
 
             if(dispose) {

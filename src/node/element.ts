@@ -7,7 +7,7 @@ import { Layer } from "../layer";
 import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
-import { isZero } from "../tool/util";
+import { ellipse } from "../core/dom";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -24,13 +24,13 @@ export class Canvas2DElement {
     width: number = 0;
     height: number = 0;
 
+    checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
+
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
 
     private isVisible: boolean = true; // 是否可见
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
-
-    private _checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
     private _dirty: boolean = true;
 
@@ -83,11 +83,12 @@ export class Canvas2DElement {
             if(this._isStatic){
                 if(!this._cached){
                     this._cached = await this.buildCached(this.width, this.height, ctx);
-                } else {
-                    this.setTransform(ctx, this._cachedTransform);
                 }
+
+                this.setTransform(ctx, this._cachedTransform);
                 ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
             } else {
+                this._cachedTransform = null;
                 this.setTransform(ctx);
                 await this.build(ctx);
             }
@@ -163,16 +164,19 @@ export class Canvas2DElement {
         this._parentHeight = this._getBaseSize('height');
 
         if(!(this._isStatic && this._cached)){
-            const width = this.width = this._parseSize(this.style.width, 'width');
-            const height = this.height = this._parseSize(this.style.height, 'height');
+            this.calcSize();
+            this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
+            if(this.style.border < 0){
+                this.style.border = 0;
+            }
 
-            this.style.border = Math.min(this.style.border, width / 2, height / 2);
-
-            this.origin[0] = this.style.origin[0] * width;
-            this.origin[1] = this.style.origin[1] * height;
+            this.origin[0] = this.style.origin[0] * this.width;
+            this.origin[1] = this.style.origin[1] * this.height;
         }
 
         this._updateTransform();
+
+        this.checkedPoint.clear();
     }
 
     afterUpdate(){
@@ -180,9 +184,28 @@ export class Canvas2DElement {
     }
 
     beforeBuild() {}
-    build(ctx: CanvasRenderingContext2D) {}
+
+    async build(ctx: CanvasRenderingContext2D) {
+        const border = this.style.border;
+        const width = this.width - border;
+        const height = this.height - border;
+
+        this.buildPath(ctx, 0, 0, width, height);
+        await this.style.build(ctx, width, height);
+
+        if(border){
+            ctx.stroke();
+
+            if(this.style.background){
+                this.buildPath(ctx, border / 2, border / 2, width - border, height - border);
+            }
+        }
+
+        if(this.style.background){
+            ctx.fill();
+        }
+    }
     afterBuild() {
-        this._checkedPoint.clear();
         this._ignore = false;
     }
     // =============================================================
@@ -194,7 +217,9 @@ export class Canvas2DElement {
 
         const cachedCtx = canvas.getContext('2d');
         cachedCtx.save();
-        this.setTransform(cachedCtx);
+        if(this._cachedTransform) {
+            this.setTransform(cachedCtx);
+        }
         await this.build(cachedCtx);
         cachedCtx.restore();
 
@@ -204,9 +229,13 @@ export class Canvas2DElement {
     /**
      * 仅创建路径, 不绘制, 可用于检测一个点是否在节点内部
      */
-    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){
+    buildPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number){
         ctx.beginPath();
-        ctx.rect(0, 0, width, height);
+        if(this.style.borderRadius){
+            this.buildRadiusPath(ctx, x, y, width, height);
+        } else {
+            ctx.rect(x, y, width, height);
+        }
         ctx.closePath();
     }
 
@@ -216,6 +245,11 @@ export class Canvas2DElement {
         }
 
         return false;
+    }
+
+    calcSize(){
+        this.width = this._parseSize(this.style.width, 'width');
+        this.height = this._parseSize(this.style.height, 'height');
     }
 
     /**
@@ -228,12 +262,12 @@ export class Canvas2DElement {
         }
 
         const pk: string = `${x}_${y}`;
-        if(this._checkedPoint.has(pk)) {
-            return this._checkedPoint.get(pk);
+        if(this.checkedPoint.has(pk)) {
+            return this.checkedPoint.get(pk);
         }
 
         if(!this.rect.contain(x, y)) {
-            this._checkedPoint.set(pk, false);
+            this.checkedPoint.set(pk, false);
             return false;
         }
 
@@ -243,54 +277,64 @@ export class Canvas2DElement {
 
             ctx.setTransform(clipParent.transform);
             ctx.translate(border, border);
-            clipParent.buildPath(ctx, clipParent.width - border * 2, clipParent.height - border * 2);
+            clipParent.buildPath(ctx, 0, 0, clipParent.width - border * 2, clipParent.height - border * 2);
 
             if(!ctx.isPointInPath(x, y)) {
-                this._checkedPoint.set(pk, false);
+                this.checkedPoint.set(pk, false);
 
                 return false;
             }
         }
 
         ctx.setTransform(this.transform);
-        this.buildPath(ctx, this.width, this.height);
+        this.buildPath(ctx, 0, 0, this.width, this.height);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         const result = ctx.isPointInPath(x, y);
-        this._checkedPoint.set(pk, result);
+        this.checkedPoint.set(pk, result);
 
         return result;
     }
 
     /**
-     * 构建圆角矩形
+     * 构建圆角矩形。性能消耗较大, 应减少使用, 或静态时使用
+     *
+     * 在 border存在 时圆角处会出现缝隙
+     * 且 border越大 缝隙越大
      */
-    protected buildRadiusPath(ctx: CanvasRenderingContext2D, w: number, h: number){
-        let circleCount: number = 0;
-        const radius = this.style.borderRadius.map((v, i) => {
-            const base = i % 2 ? h : w;
+    protected buildRadiusPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number){
+        const radius = this.style.borderRadius.map(v => {
+            const res = [v, v];
             if(v <= 1) {
-                v *= base;
+                res[0] *= w;
+                res[1] *= h;
             }
-            v = Math.min(v, base / 2);
-            if(isZero(v - base / 2)){
-                circleCount++;
-                v = base / 2;
-            }
+            res[0] = Math.min(res[0], w / 2);
+            res[1] = Math.min(res[1], h / 2);
 
-            return v;
+            return res;
         });
 
-        if(circleCount >= 4){
-            const r = radius[0]
-            ctx.arc(r, r, r, 0, Math.PI * 2);
-        } else {
-            ctx.moveTo(0, h - radius[3]);
+        ctx.moveTo(x + w, y + radius[1][1]);
 
-            ctx.arcTo(0, 0, w, 0, radius[0]);
-            ctx.arcTo(w, 0, w, h, radius[1]);
-            ctx.arcTo(w, h, 0, h, radius[2]);
-            ctx.arcTo(0, h, 0, 0, radius[3]);
+        ellipse(ctx, x + w - radius[1][0], y + radius[1][1], radius[1][0], radius[1][1], 0, -Math.PI / 2, 0, 0);
+        if(Math.abs(radius[0][0] - w + radius[1][0]) > 1e-3){
+            ctx.lineTo(x + radius[0][0], y);
+        }
+
+        ellipse(ctx, x + radius[0][0], y + radius[0][1], radius[0][0], radius[0][1], -Math.PI / 2, Math.PI, 0, 0);
+        if(Math.abs(h - radius[0][1] - radius[3][1]) > 1e-3) {
+            ctx.lineTo(x, y + h - radius[3][1]);
+        }
+
+        ellipse(ctx, x + radius[3][0], y + h - radius[3][1], radius[3][0], radius[3][1], Math.PI, Math.PI / 2, 0, 0);
+        if(Math.abs(w - radius[2][0] - radius[3][0]) > 1e-3) {
+            ctx.lineTo(x + w - radius[2][0], y + h);
+        }
+
+        ellipse(ctx, x + w - radius[2][0], y + h - radius[2][1], radius[2][0], radius[2][1], Math.PI / 2, 0, 0, 0);
+        if(Math.abs(radius[1][1] - h + radius[2][1]) > 1e-3) {
+            ctx.lineTo(x + w, y + radius[1][1]);
         }
     }
 

@@ -27,6 +27,13 @@ function parseNumArr(data: number | number[]){
     return res;
 }
 
+const isTransformKey = makeCheckExist(
+    'rotation left top bottom right' + ' ' +
+    'scale scaleX scaleY width height' + ' ' +
+    'origin originX originY'
+)
+
+// ====================================================
 export interface Istyle {
     background?: string | CanvasGradient;
     color?: string | CanvasGradient;
@@ -60,15 +67,9 @@ export interface Istyle {
     originY?: number;
 }
 
-export const isTransformKey = makeCheckExist(
-    'rotation left top bottom right ' +
-    'scale scaleX scaleY width height ' +
-    'origin originX originY'
-)
-
 export class Style {
     background?: string | CanvasGradient;
-    color?: string | CanvasGradient;
+    color: string | CanvasGradient = '#000';
 
     src?: string; // 图片路径
 
@@ -77,7 +78,7 @@ export class Style {
     borderRadius?: number[];
     borderStyle: number[] = [];
 
-    opacity: number = 1;
+    opacity: number = 1; // 有点bug，没有实现类似css的效果, 待解决
 
     width: number | string = '100%';
     height: number | string = '100%';
@@ -118,7 +119,7 @@ export class Style {
             ctx.strokeStyle = this.borderColor;
             ctx.lineWidth = this.border;
         }
-        ctx.globalAlpha *= this.opacity;
+        ctx.globalAlpha *= Math.min(1, this.opacity);
 
         if(this.background) {
             if(isImg(this.background)) {
@@ -140,7 +141,7 @@ export class Style {
      * 设置继承样式
      */
     inherit(ctx: CanvasRenderingContext2D){
-        ctx.globalAlpha *= this.opacity;
+        ctx.globalAlpha *= Math.min(1, this.opacity);
         if(this.clip){
             ctx.clip();
         }
@@ -203,13 +204,13 @@ export class Style {
         }
 
         // 替换资源，释放原有的资源
-        if(key === 'src' || key === 'background') {
-            const old = Reflect.get(this, key);
-            if(isImg(old) && old !== value) {
-                disposeImg(old);
-                this._res.delete(old);
-            }
-        }
+        // if(key === 'src' || key === 'background') {
+        //     const old = Reflect.get(this, key);
+        //     if(isImg(old) && old !== value) {
+        //         disposeImg(old);
+        //         this._res.delete(old);
+        //     }
+        // }
 
         switch(key){
             case 'borderRadius':
@@ -222,7 +223,8 @@ export class Style {
                 const k = <'scale' | 'origin'>key.substr(0, key.length - 1);
                 this[k][key.endsWith('X') ? 0 : 1] = value;
                 break;
-            default: Reflect.set(this, key, value);
+            default:
+                Reflect.set(this, key, value);
         }
 
         return isModifyTransform;

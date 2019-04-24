@@ -18,6 +18,16 @@ export class Container extends Canvas2DElement {
     }
 
     attr(key: string | Istyle, value?: any){
+        if(typeof key === 'string') {
+            key = {[key]: value};
+        }
+
+        // 带边框的父元素的裁剪会影响子元素的鼠标拾取范围, 这里对其进行了简单处理
+        // 只要clip或border可能会改变时就清除所有子元素的拾取缓存
+        if(Reflect.has(key, 'clip') || Reflect.has(key, 'border')) {
+            this.children.forEach(v => v.checkedPoint.clear());
+        }
+
         super.attr(key, value);
 
         if(!this.rect){
@@ -28,27 +38,7 @@ export class Container extends Canvas2DElement {
     }
 
     async build(ctx: CanvasRenderingContext2D){
-        const border = this.style.border;
-        const width = this.width - border;
-        const height = this.height - border;
-
-        this.buildPath(ctx, width, height);
-
-        await this.style.build(ctx, width, height);
-
-        if(border){
-            ctx.stroke();
-
-            if(this.style.background){
-                ctx.beginPath();
-                ctx.rect(border / 2, border / 2, width - border, height - border);
-                ctx.closePath();
-            }
-        }
-
-        if(this.style.background){
-            ctx.fill();
-        }
+        await super.build(ctx);
 
         ctx.restore();
 
@@ -58,20 +48,10 @@ export class Container extends Canvas2DElement {
         return this._renderChildren(ctx);
     }
 
-    buildPath(ctx: CanvasRenderingContext2D, width: number, height: number){
-        ctx.beginPath();
-        if(this.style.borderRadius){
-            this.buildRadiusPath(ctx, width, height);
-        } else {
-            ctx.rect(0, 0, width, height);
-        }
-        ctx.closePath();
-    }
-
     remove(el: Canvas2DElement, dispose: boolean = true){
         const i = this.children.findIndex(v => v === el);
         if(i >= 0){
-            el.parent = null;
+            el.parent = el.rect = null;
             this.children.splice(i, 1);
 
             if(dispose) {
@@ -86,18 +66,20 @@ export class Container extends Canvas2DElement {
 
     add(el: Canvas2DElement){
         const parent = el.parent || el.layer;
-        if(parent){
-            parent.remove(el, false);
-        }
-        el.rect = null;
-        el.parent = this;
 
-        const index = findIndexByBinary(
-            mid => el.style.zIndex - this.children[mid].style.zIndex,
-            this.children.length
-        );
-        this.children.splice(index, 0, el);
-        this.markDirty();
+        if(parent !== this) {
+            if(parent){
+                parent.remove(el, false);
+            }
+            el.parent = this;
+
+            const index = findIndexByBinary(
+                mid => el.style.zIndex - this.children[mid].style.zIndex,
+                this.children.length
+            );
+            this.children.splice(index, 0, el);
+            this.markDirty();
+        }
 
         return this;
     }
@@ -136,7 +118,7 @@ export class Container extends Canvas2DElement {
         return false;
     }
 
-    private _renderChildren(ctx: CanvasRenderingContext2D){
+    private _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
         return new Promise(resolve => {
             const _render = async (i: number) => {
                 const node = this.children[i++];
