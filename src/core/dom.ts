@@ -60,3 +60,20 @@ export function ellipse(
         ctx.arc(cx, cy, rx, startAngle, endAngle, !anticlockwise);
     }
 }
+
+/**
+ * 解析css尺寸
+ * @param size 尺寸设置
+ * @param base 百分比相对值
+ */
+export function parseSize(size: number | string, base: number): number {
+    if(typeof size === 'string'){
+        if(size.endsWith('%')){
+            return base * (parseFloat(size) || 0) / 100;
+        } else {
+            return parseFloat(size) || 0;
+        }
+    }
+
+    return <number>size;
+}

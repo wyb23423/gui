@@ -7,7 +7,7 @@ import { Layer } from "../layer";
 import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
-import { ellipse } from "../core/dom";
+import { ellipse, parseSize } from "../core/dom";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -34,7 +34,7 @@ export class Canvas2DElement {
 
     private _dirty: boolean = true;
 
-    private _cached?: HTMLCanvasElement; // 缓存节点
+    protected _cached?: HTMLCanvasElement; // 缓存节点
     protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
 
     protected _isStatic: boolean = false; // 是否使用缓存绘制
@@ -164,7 +164,7 @@ export class Canvas2DElement {
         this._parentHeight = this._getBaseSize('height');
 
         if(!(this._isStatic && this._cached)){
-            this.calcSize();
+            await this.calcSize();
             this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
             if(this.style.border < 0){
                 this.style.border = 0;
@@ -247,9 +247,9 @@ export class Canvas2DElement {
         return false;
     }
 
-    calcSize(){
-        this.width = this._parseSize(this.style.width, 'width');
-        this.height = this._parseSize(this.style.height, 'height');
+    async calcSize(){
+        this.width = parseSize(this.style.width, this._parentWidth);
+        this.height = parseSize(this.style.height, this._parentHeight);
     }
 
     /**
@@ -352,19 +352,19 @@ export class Canvas2DElement {
 
         let x: number, y: number;
         if(style.left != null) {
-            x = this._parseSize(style.left, 'width');
+            x = parseSize(style.left, this._parentWidth);
         } else if(style.right != null){
-            x = this._parentWidth - this._parseSize(style.right, 'width') - this.width;
+            x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
         } else {
-            x = this._parseSize('50%', 'width') - this.width / 2;
+            x = parseSize('50%', this._parentWidth) - this.width / 2;
         }
 
         if(style.top != null) {
-            y = this._parseSize(style.top, 'height');
+            y = parseSize(style.top, this._parentHeight);
         } else if(style.bottom != null){
-            y = this._parentHeight - this._parseSize(style.bottom, 'height') - this.height;
+            y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
         } else {
-            y = this._parseSize('50%', 'height') - this.height / 2;
+            y = parseSize('50%', this._parentHeight) - this.height / 2;
         }
 
         this.transform
@@ -380,25 +380,6 @@ export class Canvas2DElement {
                 .translate(parent.style.border, parent.style.border)
                 .transform(parent.transform);
         }
-    }
-
-    private _parseSize(size: number | string, key: 'width'| 'height'): number {
-        if(typeof size === 'string'){
-            if(size.endsWith('%')){
-                let base: number = 0;
-                if(key === 'width') {
-                    base = this._parentWidth;
-                } else {
-                    base = this._parentHeight;
-                }
-
-                return base * (parseFloat(size) || 0) / 100;
-            } else {
-                return parseFloat(size) || 0;
-            }
-        }
-
-        return <number>size;
     }
 
     private _getBaseSize(key: 'width'| 'height'){

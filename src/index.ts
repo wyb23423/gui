@@ -1,4 +1,3 @@
-
 export { Canvas2DElement } from "./node/element";
 export { Layer } from "./layer";
 export { Engine } from "./engine";

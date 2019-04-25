@@ -118,7 +118,7 @@ export class Container extends Canvas2DElement {
         return false;
     }
 
-    private _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
+    protected _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
         return new Promise(resolve => {
             const _render = async (i: number) => {
                 const node = this.children[i++];

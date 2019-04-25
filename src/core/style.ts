@@ -65,6 +65,10 @@ export interface Istyle {
     origin?: number | number[];
     originX?: number;
     originY?: number;
+
+    cellId?: number;
+    cellWidth?: number | string;
+    cellHeight?: number | string;
 }
 
 export class Style {

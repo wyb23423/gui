@@ -104,7 +104,7 @@ export class TextBlock extends Canvas2DElement {
             Object.entries(key).forEach(this._setTextStyle, this);
         }
 
-        if(this._modifyText) {
+        if(this._modifyText && !this.isStatic) {
             if(this.height <= 0 && this.style.top == null){
                 this.rect = null;
             } else if(this.rect){
@@ -124,8 +124,8 @@ export class TextBlock extends Canvas2DElement {
         super.update();
     }
 
-    calcSize(){
-        super.calcSize();
+    async calcSize(){
+        await super.calcSize();
 
         this.parseText();
 
@@ -142,6 +142,11 @@ export class TextBlock extends Canvas2DElement {
 
     parseText() {
         this._textMap.length = 0;
+
+        // 静态文本只解析一次
+        if(this.isStatic && this._cached) {
+            return;
+        }
 
         if(this._text) {
             const font = this._font.filter(v => v != null && v !== '').join(' ');
