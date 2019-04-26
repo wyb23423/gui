@@ -265,7 +265,7 @@ export class Canvas2DElement {
             return this.checkedPoint.get(pk);
         }
 
-        if(!this.rect.contain(x, y)) {
+        if(this.rect && !this.rect.contain(x, y)) {
             this.checkedPoint.set(pk, false);
             return false;
         }
