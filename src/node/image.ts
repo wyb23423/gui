@@ -38,11 +38,10 @@ export class Canvas2DImage extends Canvas2DElement {
         await this.style.build(ctx, this.width, this.height);
 
         const img = await this.style.loadImg();
+        const sw: number = Math.min(parseSize(this._cellWidth, img.width), img.width),
+              sh: number = Math.min(parseSize(this._cellHeight, img.height), img.height);
 
-        if(this._cellId >= 0 && this._cellWidth && this._cellHeight) { // 精灵图
-            const sw: number = Math.min(parseSize(this._cellWidth, img.width), img.width),
-                  sh: number = Math.min(parseSize(this._cellHeight, img.height), img.height);
-
+        if(this._cellId >= 0 && sw > 0 && sh > 0) { // 精灵图
             const cw: number = (this._cellId + 1) * sw;
             let sx: number = (cw % img.width) - sw,
                 sy: number = Math.floor(cw / img.width) * sh;
@@ -64,7 +63,7 @@ export class Canvas2DImage extends Canvas2DElement {
         this.style.border = 0; // 图片没有边框，如果需要有，可使用Container的背景图
         this.isStatic = false; // 图片本就有缓存，不需要再次缓存
 
-        super.update();
+        return super.update();
     }
 
     async calcSize() {

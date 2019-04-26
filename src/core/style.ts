@@ -5,6 +5,7 @@
  */
 import { isImg, makeCheckExist } from "../tool/util";
 import { getImg, disposeImg, DEFAULT_SRC } from "./resource";
+import { parseColor, stringify } from "../tool/color";
 
 /**
  * 将数据解析为有4个元素的数组
@@ -204,7 +205,11 @@ export class Style {
     private attr([key, value]: [string, any]){
         let isModifyTransform = isTransformKey(key);
         if(isModifyTransform) {
-            isModifyTransform = isModifyTransform && this.equal(key, value);
+            isModifyTransform = isModifyTransform && !this.equal(key, value);
+        }
+
+        if((key === 'src' || key === 'background') && !isImg(value)) {
+            value = stringify(parseColor(value), 'rgba');
         }
 
         // 替换资源，释放原有的资源

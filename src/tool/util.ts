@@ -13,7 +13,7 @@ export function cached<T>(fn: (...arg: any[]) => T, maxSize?: number): (...arg: 
 
         if(!cache.has(key)) {
             if(maxSize && cache.size >= maxSize) {
-                cache.clear();
+                cache.delete(cache.keys().next().value);
             }
             cache.set(key, fn.apply(null, arg));
         }
@@ -121,3 +121,17 @@ export function findIndexByBinary(compare: (mid: number) => number, len: number)
 
     return low;
 }
+
+/**
+ * 下/中划线转驼峰
+ */
+export const line2hump = cached((str: string) => {
+    return str.replace(/[-_]+(\w)/g, (_, w: string) => w.toUpperCase());
+})
+
+/**
+ * 驼峰转下/中划线
+ */
+export const hump2line = cached((str: string, line: string = '-') => {
+    return str.replace(/[A-Z]/g, (w: string) => line + w.toLowerCase());
+})

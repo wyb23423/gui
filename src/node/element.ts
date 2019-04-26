@@ -12,15 +12,15 @@ import { ellipse, parseSize } from "../core/dom";
 export class Canvas2DElement {
     readonly type: string = 'element';
 
+    index: number = 0; // 在父容器内部的添加顺序
+
     transform = new Matrix();
     parent?: Container;
     layer?: Layer;
     rect?: BoundingRect;
 
     style: Style = new Style();
-
     origin: number[] = [0, 0];
-
     width: number = 0;
     height: number = 0;
 
@@ -38,7 +38,6 @@ export class Canvas2DElement {
     protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
 
     protected _isStatic: boolean = false; // 是否使用缓存绘制
-
 
     constructor(public id: string | number, isStatic: boolean = false) {
         this._isStatic = isStatic;
@@ -317,22 +316,30 @@ export class Canvas2DElement {
 
         ctx.moveTo(x + w, y + radius[1][1]);
 
+        // 右上
         ellipse(ctx, x + w - radius[1][0], y + radius[1][1], radius[1][0], radius[1][1], 0, -Math.PI / 2, 0, 0);
+        // 上
         if(Math.abs(radius[0][0] - w + radius[1][0]) > 1e-3){
             ctx.lineTo(x + radius[0][0], y);
         }
 
+        // 左上
         ellipse(ctx, x + radius[0][0], y + radius[0][1], radius[0][0], radius[0][1], -Math.PI / 2, Math.PI, 0, 0);
+        // 左
         if(Math.abs(h - radius[0][1] - radius[3][1]) > 1e-3) {
             ctx.lineTo(x, y + h - radius[3][1]);
         }
 
+        // 左下
         ellipse(ctx, x + radius[3][0], y + h - radius[3][1], radius[3][0], radius[3][1], Math.PI, Math.PI / 2, 0, 0);
+        // 下
         if(Math.abs(w - radius[2][0] - radius[3][0]) > 1e-3) {
             ctx.lineTo(x + w - radius[2][0], y + h);
         }
 
+        // 右下
         ellipse(ctx, x + w - radius[2][0], y + h - radius[2][1], radius[2][0], radius[2][1], Math.PI / 2, 0, 0, 0);
+        // 右
         if(Math.abs(radius[1][1] - h + radius[2][1]) > 1e-3) {
             ctx.lineTo(x + w, y + radius[1][1]);
         }

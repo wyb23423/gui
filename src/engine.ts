@@ -2,6 +2,7 @@ import { Layer } from "./layer";
 
 export class Engine {
     private _layers: Map<number, Layer> = new Map();
+    private _timer?: number
 
     constructor(private _root: HTMLElement) {
         Object.assign(_root.style, {
@@ -24,7 +25,7 @@ export class Engine {
         this._layers.forEach(v => v.render());
 
         if(this._root){
-            requestAnimationFrame(this.render.bind(this));
+            this._timer = requestAnimationFrame(this.render.bind(this));
         }
     }
 
@@ -65,8 +66,11 @@ export class Engine {
     }
 
     dispose(){
-        this._layers.forEach(this.removeLayer, this);
+        if(this._timer) {
+            cancelAnimationFrame(this._timer);
+        }
 
+        this._layers.forEach(this.removeLayer, this);
         this._root = null;
     }
 

@@ -6,6 +6,7 @@ import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
 import { Matrix } from "../lib/matrix";
 import { findIndexByBinary } from "../tool/util";
+import { inspect } from "util";
 
 export class Container extends Canvas2DElement {
     readonly type: string = 'container';
@@ -31,7 +32,7 @@ export class Container extends Canvas2DElement {
         super.attr(key, value);
 
         if(!this.rect){
-            this.children.forEach(v => v.rect = null);
+            this._disposeChildrenRect();
         }
 
         return this;
@@ -73,6 +74,7 @@ export class Container extends Canvas2DElement {
             }
             el.parent = this;
 
+            el.index = this.children.length;
             const index = findIndexByBinary(
                 mid => el.style.zIndex - this.children[mid].style.zIndex,
                 this.children.length
@@ -116,6 +118,15 @@ export class Container extends Canvas2DElement {
         }
 
         return false;
+    }
+
+    private _disposeChildrenRect() {
+        this.children.forEach(v => {
+            v.rect = null;
+            if(v instanceof Container) {
+                v._disposeChildrenRect();
+            }
+        });
     }
 
     protected _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {

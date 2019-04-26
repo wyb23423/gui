@@ -19,7 +19,6 @@ export class TextBlock extends Canvas2DElement {
 
     private _textAlign: TextAlign = 'left'; // 文本横向对齐
     private _verticalAlign: VerticalAlign = 'top';// 文本垂直对齐
-    private _color: string | CanvasGradient = ''; // 文本颜色, 默认使用父级的颜色
 
     private _strokeColor?: string | CanvasGradient = '#000'; // 描边颜色
     private _strokeWidth: number = 0; // 描边宽度
@@ -39,6 +38,7 @@ export class TextBlock extends Canvas2DElement {
         super(id, isStatic);
 
         this.style.height = 0; // 清除默认高设置
+        this.style.color = ''; // 默认使用父级颜色
     }
 
     set fontStyle(style: FontStyle) {
@@ -75,7 +75,10 @@ export class TextBlock extends Canvas2DElement {
         const last = this._textMap[this._textMap.length - 1];
         if(last) {
             ctx.textBaseline = 'top';
-            ctx.fillStyle = this._color || (this.parent ? this.parent.style.color : '#000');
+            const color = this.style.color || (this.parent ? this.parent.style.color : '');
+            if(color) {
+                ctx.fillStyle = color;
+            }
             if(this._strokeWidth) {
                 ctx.strokeStyle = this._strokeColor;
             }
@@ -108,7 +111,7 @@ export class TextBlock extends Canvas2DElement {
             if(this.height <= 0 && this.style.top == null){
                 this.rect = null;
             } else if(this.rect){
-                this.parseText();
+                this._parseText();
             }
         }
 
@@ -127,7 +130,7 @@ export class TextBlock extends Canvas2DElement {
     async calcSize(){
         await super.calcSize();
 
-        this.parseText();
+        this._parseText();
 
         // 高默认用文本高填充
         if(this.height <= 0) {
@@ -140,7 +143,7 @@ export class TextBlock extends Canvas2DElement {
         }
     }
 
-    parseText() {
+    private _parseText() {
         this._textMap.length = 0;
 
         // 静态文本只解析一次
