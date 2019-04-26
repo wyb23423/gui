@@ -4,6 +4,7 @@ export { Engine } from "./engine";
 export { Container } from "./node/container";
 export { Canvas2DImage } from "./node/image";
 export { TextBlock } from "./node/text";
+export { Canvas2DAnimation } from './animation/animation';
 
 import { Engine } from "./engine";
 import { Container } from "./node/container";
