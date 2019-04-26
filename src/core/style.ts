@@ -208,7 +208,7 @@ export class Style {
             isModifyTransform = isModifyTransform && !this.equal(key, value);
         }
 
-        if((key === 'src' || key === 'background') && !isImg(value)) {
+        if((key === 'src' || key === 'background') && typeof value === 'string' && !isImg(value)) {
             value = stringify(parseColor(value), 'rgba');
         }
 
