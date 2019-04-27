@@ -8,6 +8,7 @@ import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { ellipse, parseSize } from "../core/dom";
+import { Canvas2DAnimation } from "../animation/animation";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -27,6 +28,8 @@ export class Canvas2DElement {
     checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
     needUpdate: boolean = true;
+
+    private _animation?: Canvas2DAnimation;
 
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
@@ -53,6 +56,17 @@ export class Canvas2DElement {
         this._isStatic = isStatic;
     }
 
+    get animation() {
+        return this._animation;
+    }
+
+    set animation(animation: Canvas2DAnimation) {
+        if(animation !== this._animation) {
+            this._animation = animation;
+            animation && animation.addElement(this);
+        }
+    }
+
     dispose() {
         if(this.layer) {
             this.layer.remove(this, false);
@@ -65,6 +79,7 @@ export class Canvas2DElement {
         this.style.dispose();
 
         this._cached
+        = this._animation
         = this.rect
         = this.transform
         = this.style

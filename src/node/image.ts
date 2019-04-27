@@ -40,7 +40,7 @@ export class Canvas2DImage extends Canvas2DElement {
               sh: number = Math.min(parseSize(this._cellHeight, img.height), img.height);
 
         if(this._cellId >= 0 && sw > 0 && sh > 0) { // 精灵图
-            const cw: number = (this._cellId + 1) * sw;
+            const cw: number = Math.floor(this._cellId + 1) * sw;
             let sx: number = (cw % img.width) - sw,
                 sy: number = Math.floor(cw / img.width) * sh;
             if(isZero(cw % img.width)) {

@@ -49,7 +49,7 @@ export class Canvas2DAnimation {
     private _isPause: boolean = false;
     private _timer?: number;
 
-    private el?: Canvas2DElement;
+    private el: Map<Canvas2DElement, AnimationAttr> = new Map();
 
     // ===================================可添加动画的属性
     private width: AnimationAttr = {};
@@ -104,31 +104,37 @@ export class Canvas2DAnimation {
         return this;
     }
 
-    setElement(el: Canvas2DElement) {
-        this.el = el;
-        const style = el.style;
-        const attr: AnimationFrame = {
-            width: style.width,
-            height: style.height,
-            rotation: style.rotation,
-            left: style.left,
-            right: style.right,
-            top: style.top,
-            bottom: style.bottom,
-            opacity: style.opacity,
-            scaleX: style.scale[0],
-            scaleY: style.scale[1],
-        };
-        if(typeof style.color === 'string') {
-            attr.color = style.color;
+    addElement(el: Canvas2DElement) {
+        if(!this.el.has(el)) {
+            const style = el.style;
+            const attr: AnimationAttr = {
+                width: style.width,
+                height: style.height,
+                rotation: style.rotation,
+                left: style.left,
+                right: style.right,
+                top: style.top,
+                bottom: style.bottom,
+                opacity: style.opacity,
+                scaleX: style.scale[0],
+                scaleY: style.scale[1],
+            };
+            if(typeof style.color === 'string') {
+                attr.color = parseColor(style.color);
+            }
+            if(typeof style.background === 'string' && !isImg(style.background)) {
+                attr.background = parseColor(style.background);
+            }
+            if(el instanceof Canvas2DImage) {
+                attr.cellId = 0;
+            }
+            this.el.set(el, attr);
+            if(el.animation !== this) {
+                el.animation = this;
+            }
         }
-        if(typeof style.background === 'string') {
-            attr.background = style.background;
-        }
-        if(el instanceof Canvas2DImage) {
-            attr.cellId = 0;
-        }
-        this.addFrame(0, attr, false);
+
+        return this;
     }
 
     addEndCall(fn: Function) {
@@ -147,7 +153,8 @@ export class Canvas2DAnimation {
         }
         this._endCall.clear();
 
-        this.el = null;
+        this.el.forEach(v => v.animation = null);
+        this.el.clear();
     }
 
     start(now: number = Date.now()) {
@@ -187,12 +194,17 @@ export class Canvas2DAnimation {
 
     private _play() {
         const now = Date.now();
-        if(this._isStart && this.el) {
+        for(const v of this.el.keys()) {
+            if(v.animation !== this) {
+                this.el.delete(v);
+            }
+        }
+        if(this._isStart && this.el.size) {
             if(now >= this._startTime) {
                 const progress = Math.min(1, (now - this._startTime - this._pauseTime) / this.time);
 
                 if(!this._isPause) {
-                    this.el.attr(this._getAttr(progress));
+                    this.el.forEach((v, e) => e.attr(this._getAttr(progress, v)));
                 } else {
                     this._pauseTime += now - this._prevTime;
                 }
@@ -205,11 +217,13 @@ export class Canvas2DAnimation {
         }
     }
 
-    private _getAttr(progress: number) {
+    private _getAttr(progress: number, zeroFrame: AnimationAttr) {
         const attr: AnimationFrame = {};
 
         animationKey.forEach(k => {
             const thisAttr: any = Reflect.get(this, k);
+            thisAttr[0] = thisAttr[0] == null ? Reflect.get(zeroFrame, k) : thisAttr[0];
+
             const frames = Object.keys(thisAttr).sort((a, b) => +a - +b);
             const frame = frames.findIndex(v => +v >= progress);
 
@@ -227,12 +241,18 @@ export class Canvas2DAnimation {
                     } else if(type1 === 'number'){
                         value = (value - prev) * rate + prev;
                     } else if(type1 === 'string') {
-                        const reg = /^(\d+)(.*)$/;
+                        let reg = /^([\+-]?\d+)(.*)$/;
                         if(reg.test(value)) {
-                            value = value.replace(/^(\d+)(.*)$/, (_: string, v: string, s: string) => {
-                                prev = +parseFloat(prev) || 0;
+                            value = value.replace(reg, (_: string, v: string, s: string) => {
+                                let prevValue = +parseFloat(prev);
 
-                                return (+v - prev) * rate + prev + s;
+                                reg = new RegExp(`^[\\+-]?\\d+${s}$`);
+                                if(!reg.test(prev) && prevValue !== 0) {
+                                    this._warnOnce(k);
+                                    prevValue = 0;
+                                }
+
+                                return (+v - prevValue) * rate + prevValue + s;
                             });
                         } else {
                             value = 0;

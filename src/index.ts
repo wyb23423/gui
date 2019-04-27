@@ -34,9 +34,9 @@ controls[0].attr({
     background: '#e00',
     rotation: Math.PI / 4,
     // opacity: 0.6,
-    scale: 0.5,
+    scale: 0.8,
     border: 10,
-    // left: 20,
+    left: '-10%',
     // top: 100,
     borderColor: '#ccc',
     // origin: [0, 0],
@@ -77,8 +77,8 @@ layer0.add(controls[0]);
 engine.render();
 
 const animation = new Canvas2DAnimation(1000, Infinity);
-animation.addFrame(1, {scale: 1.5});
-animation.setElement(controls[0]);
+animation.addFrame(1, {left: '50%'});
+animation.addElement(controls[0]);
 
 console.log(animation);
 animation.start();
