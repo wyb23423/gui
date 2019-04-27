@@ -124,7 +124,6 @@ export class Style {
             ctx.strokeStyle = this.borderColor;
             ctx.lineWidth = this.border;
         }
-        ctx.globalAlpha *= Math.min(1, this.opacity);
 
         if(this.background) {
             if(isImg(this.background)) {
@@ -143,12 +142,12 @@ export class Style {
     }
 
     /**
-     * 设置继承样式
+     * 设置全局透明度
      */
-    inherit(ctx: CanvasRenderingContext2D){
-        ctx.globalAlpha *= Math.min(1, this.opacity);
-        if(this.clip){
-            ctx.clip();
+    setAlpha(ctx: CanvasRenderingContext2D){
+        const alpha = Math.max(0, Math.min(1, this.opacity));
+        if(alpha < 1 && ctx.globalAlpha > 0) {
+            ctx.globalAlpha *= alpha;
         }
     }
 
@@ -211,15 +210,6 @@ export class Style {
         if((key === 'src' || key === 'background') && typeof value === 'string' && !isImg(value)) {
             value = stringify(parseColor(value), 'rgba');
         }
-
-        // 替换资源，释放原有的资源
-        // if(key === 'src' || key === 'background') {
-        //     const old = Reflect.get(this, key);
-        //     if(isImg(old) && old !== value) {
-        //         disposeImg(old);
-        //         this._res.delete(old);
-        //     }
-        // }
 
         switch(key){
             case 'borderRadius':

@@ -109,8 +109,8 @@ export class TextBlock extends Canvas2DElement {
 
         if(this._modifyText && !this.isStatic) {
             if(this.height <= 0 && this.style.top == null){
-                this.rect = null;
-            } else if(this.rect){
+                this.needUpdate = true;
+            } else if(!this.needUpdate){
                 this._parseText();
             }
         }

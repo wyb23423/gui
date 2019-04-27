@@ -26,6 +26,8 @@ export class Canvas2DElement {
 
     checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
+    needUpdate: boolean = true;
+
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
 
@@ -35,7 +37,7 @@ export class Canvas2DElement {
     private _dirty: boolean = true;
 
     protected _cached?: HTMLCanvasElement; // 缓存节点
-    protected _cachedTransform?: Matrix; // 使用缓存绘制的变换矩阵
+    protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
 
     protected _isStatic: boolean = false; // 是否使用缓存绘制
 
@@ -78,13 +80,16 @@ export class Canvas2DElement {
 
         if(this._isPaint(ctx.canvas.width, ctx.canvas.height)) {
             ctx.save();
+            this.style.setAlpha(ctx);
 
             if(this._isStatic){
                 if(!this._cached){
                     this._cached = await this.buildCached(this.width, this.height, ctx);
                 }
-
-                this.setTransform(ctx, this._cachedTransform);
+                const transform = this._cachedTransform
+                                    ? new Matrix().copy(this._cachedTransform).transform(this.transform)
+                                    : this.transform;
+                this.setTransform(ctx, transform);
                 ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
             } else {
                 this._cachedTransform = null;
@@ -115,7 +120,7 @@ export class Canvas2DElement {
 
         if(!isEqual) {
             if(this.style.set(key, value)){
-                this.rect = null;
+                this.needUpdate = true;
             }
 
             this.markDirty();
@@ -128,11 +133,13 @@ export class Canvas2DElement {
      * 获取节点AABB类包围盒
      */
     async getBoundingRect() {
-        if(!this.rect) {
+        if(this.needUpdate) {
             await this.update();
 
             this.rect = new BoundingRect(0, 0, this.width, this.height)
                             .transform(this.transform);
+
+            this.needUpdate = false;
         }
 
         return this.rect;
@@ -216,9 +223,6 @@ export class Canvas2DElement {
 
         const cachedCtx = canvas.getContext('2d');
         cachedCtx.save();
-        if(this._cachedTransform) {
-            this.setTransform(cachedCtx);
-        }
         await this.build(cachedCtx);
         cachedCtx.restore();
 
@@ -249,6 +253,15 @@ export class Canvas2DElement {
     async calcSize(){
         this.width = parseSize(this.style.width, this._parentWidth);
         this.height = parseSize(this.style.height, this._parentHeight);
+    }
+
+    setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
+        const {a, b, c, d, e, f} = transform;
+
+        ctx.transform(a, b, c, d, e, f);
+        ctx.translate(this.style.border / 2, this.style.border / 2);
+
+        this.beforeBuild();
     }
 
     /**
@@ -343,15 +356,6 @@ export class Canvas2DElement {
         if(Math.abs(radius[1][1] - h + radius[2][1]) > 1e-3) {
             ctx.lineTo(x + w, y + radius[1][1]);
         }
-    }
-
-    private setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
-        const {a, b, c, d, e, f} = transform;
-
-        ctx.setTransform(a, b, c, d, e, f);
-        ctx.translate(this.style.border / 2, this.style.border / 2);
-
-        this.beforeBuild();
     }
 
     private _updateTransform(){

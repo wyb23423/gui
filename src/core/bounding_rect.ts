@@ -1,7 +1,7 @@
 /**
  * 包围盒
  */
-import { Matrix, mul } from '../lib/matrix';
+import { Matrix } from '../lib/matrix';
 
 export class BoundingRect {
     constructor(
@@ -19,13 +19,43 @@ export class BoundingRect {
         ];
     }
 
-    transform(m: Matrix,){
-        const arr = mul(m.toArray(), this.toArray());
+    extend(other: BoundingRect) {
+        const x = Math.min(other.x, this.x);
+        const y = Math.min(other.y, this.y);
 
-        this.x = Math.min(...arr[0]);
-        this.y = Math.min(...arr[1]);
-        this.w = Math.max(...arr[0]) - this.x;
-        this.h = Math.max(...arr[1]) - this.y;
+        this.w = Math.max(other.x + other.w, this.x + this.w) - x;
+        this.h = Math.max(other.y + other.h, this.y + this.h) - y;
+        this.x = x;
+        this.y = y;
+
+        return this;
+    }
+
+    transform(m: Matrix,){
+        const thisArr = this.toArray();
+        const mArr = m.toArray();
+
+        let minX: number, minY: number,
+            maxX: number, maxY: number,
+            x: number, y: number;
+        minX = minY = Number.MAX_VALUE;
+        maxX = maxY = -Number.MAX_VALUE
+
+        for(let i=0; i<4; i++) {
+            x = mArr[0][0] * thisArr[0][i] + mArr[0][1] * thisArr[1][i] + mArr[0][2];
+            y = mArr[1][0] * thisArr[0][i] + mArr[1][1] * thisArr[1][i] + mArr[1][2];
+
+            minX = Math.min(x, minX);
+            minY = Math.min(y, minY);
+
+            maxX = Math.max(x, maxX);
+            maxY = Math.max(y, maxY);
+        }
+
+        this.x = minX;
+        this.y = minY;
+        this.w = maxX - minX;
+        this.h = maxY - minY;
 
         return this;
     }
@@ -58,5 +88,9 @@ export class BoundingRect {
         const by1 = y + h;
 
         return !(ax1 < bx0 || bx1 < ax0 || ay1 < by0 || by1 < ay0);
+    }
+
+    clone() {
+        return new BoundingRect(this.x, this.y, this.w, this.h);
     }
 }

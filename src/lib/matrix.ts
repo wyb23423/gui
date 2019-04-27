@@ -17,13 +17,6 @@ export class Matrix extends Transform {
         super();
     }
 
-     /**
-     * 使用2维数组创建变换矩阵
-     */
-    static of(data: number[][]){
-        return new Matrix(...data[0], ...data[1]);
-    }
-
     /**
      * 重置为单位阵
      */
@@ -42,66 +35,85 @@ export class Matrix extends Transform {
         ]
     }
 
-    transform(m: Matrix | number[][], right?: boolean){
+    transform(m: Matrix | number[][], isRight?: boolean){
         if(m instanceof Matrix){
             m = m.toArray();
         }
+        const thisArr = this.toArray();
+        let left = m, right = thisArr;
+        if(isRight) {
+            left = thisArr;
+            right = m;
+        };
 
-        [
-            [this.a, this.c, this.e],
-            [this.b, this.d, this.f]
-        ] = right ? mul(this.toArray(), m) : mul(m, this.toArray());
+        this.a = left[0][0] * right[0][0] + left[0][1] * right[1][0];
+        this.c = left[0][0] * right[0][1] + left[0][1] * right[1][1];
+        this.e = left[0][0] * right[0][2] + left[0][1] * right[1][2] + left[0][2];
+
+        this.b = left[1][0] * right[0][0] + left[1][1] * right[1][0];
+        this.d = left[1][0] * right[0][1] + left[1][1] * right[1][1];
+        this.f = left[1][0] * right[0][2] + left[1][1] * right[1][2] + left[1][2];
 
         return this;
+    }
+
+    // 矩阵求逆
+    invert() {
+        const det = this.a * this.d - this.b * this.c || Number.EPSILON;
+
+        return new Matrix(
+            this.d / det, -this.c / det, (this.c * this.f - this.d * this.e) / det,
+            -this.b / det, this.a / det, (this.b * this.e - this.a * this.f) / det
+        );
     }
 }
 
 /**
 * 矩阵相乘
 */
-export function mul(...m: number[][][]){
-    if(!m.length) {
-        return [];
-    }
-    if(m.length === 1) {
-        return m[0];
-    }
+// export function mul(...m: number[][][]){
+//     if(!m.length) {
+//         return [];
+//     }
+//     if(m.length === 1) {
+//         return m[0];
+//     }
 
-    return m.reduce(_mul);
-}
+//     return m.reduce(_mul);
+// }
 
-function _mul(left: number[][], right: number[][]){
-    let r:number, l: number;
+// function _mul(left: number[][], right: number[][]){
+//     let r:number, l: number;
 
-    try {
-        r = left.length || 0;
-        l = right[0].length || 0;
-    } catch(e) {
-        return console.error(e), [];
-    }
+//     try {
+//         r = left.length || 0;
+//         l = right[0].length || 0;
+//     } catch(e) {
+//         return console.error(e), [];
+//     }
 
-    const m: number[][] = [];
-    for(let i=0; i<r; i++){
-        m[i] = [];
+//     const m: number[][] = [];
+//     for(let i=0; i<r; i++){
+//         m[i] = [];
 
-        for(let j=0; j<l; j++){
-            if(Array.isArray(left[i])){
-                m[i][j] = left[i].reduce((a, lv, k) => {
-                    let rv = 0;
+//         for(let j=0; j<l; j++){
+//             if(Array.isArray(left[i])){
+//                 m[i][j] = left[i].reduce((a, lv, k) => {
+//                     let rv = 0;
 
-                    if(right[k] && right[k][j] != null){
-                        rv = right[k][j];
-                    } else {
-                        console.error(`${JSON.stringify(right)} ${k}行${j}列不存在`);
-                    }
+//                     if(right[k] && right[k][j] != null){
+//                         rv = right[k][j];
+//                     } else {
+//                         console.error(`${JSON.stringify(right)} ${k}行${j}列不存在`);
+//                     }
 
-                    return a + lv * rv;
-                }, 0)
-            } else {
-                m[i][j] = 0;
-            }
-        }
-    }
+//                     return a + lv * rv;
+//                 }, 0)
+//             } else {
+//                 m[i][j] = 0;
+//             }
+//         }
+//     }
 
-    return m;
-}
+//     return m;
+// }

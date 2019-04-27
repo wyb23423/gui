@@ -249,7 +249,6 @@ export class Canvas2DAnimation {
             }
         });
 
-        // console.log(attr);
         return attr;
     }
 

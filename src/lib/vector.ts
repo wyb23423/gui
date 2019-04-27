@@ -1,7 +1,7 @@
 /**
  * 2维向量
  */
-import { Matrix, mul } from "./matrix";
+import { Matrix } from "./matrix";
 import { Transform } from "./transform";
 
 export class Vector2 extends Transform {
@@ -18,7 +18,7 @@ export class Vector2 extends Transform {
             y = [y];
         }
 
-        return new Vector2(Math.min.apply(Math, x), Math.min.apply(Math, y));
+        return new Vector2(Math.min(...x), Math.min(...y));
     }
 
     /**
@@ -32,14 +32,7 @@ export class Vector2 extends Transform {
             y = [y];
         }
 
-        return new Vector2(Math.max.apply(Math, x), Math.max.apply(Math, y));
-    }
-
-    /**
-     * 使用2维数组创建向量
-     */
-    static of(data: number[][]){
-        return new Vector2(data[0][0], data[1][0]);
+        return new Vector2(Math.max(...x), Math.max(...y));
     }
 
     toMin(v: Vector2){
@@ -56,22 +49,13 @@ export class Vector2 extends Transform {
         return this;
     }
 
-    toArray(){
-        return [
-            [this.x],
-            [this.y],
-            [1]
-        ];
-    }
-
     /** 向量变换, 右乘矩阵 */
     transform(m: Matrix | number[][]){
         if(m instanceof Matrix){
-            m = m.toArray()
+            m = m.toArray();
         }
-        const vector = mul(m, this.toArray());
-        this.x = vector[0][0];
-        this.y = vector[1][0];
+        this.x = m[0][0] * this.x + m[0][1] * this.y + m[0][2];
+        this.y = m[1][0] * this.x + m[1][1] * this.y + m[1][2];
 
         return this;
     }

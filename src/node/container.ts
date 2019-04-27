@@ -4,19 +4,13 @@
 
 import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
-import { Matrix } from "../lib/matrix";
 import { findIndexByBinary } from "../tool/util";
-import { inspect } from "util";
+import { Matrix } from "../lib/matrix";
 
 export class Container extends Canvas2DElement {
     readonly type: string = 'container';
 
     children: Canvas2DElement[] = [];
-
-    set isStatic(isStatic: boolean){
-        this._isStatic = isStatic;
-        this.children.forEach(v => v.isStatic = isStatic);
-    }
 
     attr(key: string | Istyle, value?: any){
         if(typeof key === 'string') {
@@ -31,8 +25,8 @@ export class Container extends Canvas2DElement {
 
         super.attr(key, value);
 
-        if(!this.rect){
-            this._disposeChildrenRect();
+        if(this.needUpdate){
+            this._setChildrenProps('needUpdate', true);
         }
 
         return this;
@@ -44,7 +38,10 @@ export class Container extends Canvas2DElement {
         ctx.restore();
 
         ctx.save();
-        this.style.inherit(ctx);
+        this.style.setAlpha(ctx);
+        if(this.style.clip){
+            ctx.clip();
+        }
 
         return this._renderChildren(ctx);
     }
@@ -97,11 +94,31 @@ export class Container extends Canvas2DElement {
     }
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D){
-        this.children.forEach(v => v.isStatic = false);
+        this._setChildrenProps('isStatic', false);
+        const invert = this.transform.invert();
+        const maxRect = (await this._getMaxRect()).transform(invert);
 
-        this._cachedTransform = new Matrix();
+        const sx = ctx.canvas.width / maxRect.w;
+        const sy = ctx.canvas.height / maxRect.h;
 
-        return super.buildCached(ctx.canvas.width, ctx.canvas.height, ctx);
+        const canvas = document.createElement('canvas');
+        canvas.width = ctx.canvas.width;
+        canvas.height = ctx.canvas.height;
+
+        const cachedCtx = canvas.getContext('2d');
+        cachedCtx.scale(sx, sy);
+
+        const {a, b, c, d, e, f} = invert;
+        cachedCtx.transform(a, b, c, d, e - maxRect.x, f - maxRect.y);
+
+        cachedCtx.save();
+        this.setTransform(cachedCtx);
+        await this.build(cachedCtx);
+        cachedCtx.restore();
+
+        this._cachedTransform = new Matrix(1 / sx, 0, maxRect.x, 0, 1 / sy, maxRect.y);
+
+        return canvas;
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
@@ -120,11 +137,22 @@ export class Container extends Canvas2DElement {
         return false;
     }
 
-    private _disposeChildrenRect() {
+    private async _getMaxRect() {
+        const rect = (await this.getBoundingRect()).clone();
+        for(const v of this.children) {
+            const other =  await (v instanceof Container ?  v._getMaxRect() :  v.getBoundingRect());
+            rect.extend(other);
+        }
+
+        return rect;
+    }
+
+    private _setChildrenProps(key: string, value: any) {
         this.children.forEach(v => {
+            Reflect.set(v, key, value);
             v.rect = null;
             if(v instanceof Container) {
-                v._disposeChildrenRect();
+                v._setChildrenProps(key, value);
             }
         });
     }

@@ -28,15 +28,13 @@ export class Canvas2DImage extends Canvas2DElement {
 
         super.attr(key, value);
         if(modyfySrc && !(this.style.width && this.style.height)) {
-            this.rect = null;
+            this.needUpdate = true;
         }
 
         return this;
     }
 
     async build(ctx: CanvasRenderingContext2D) {
-        await this.style.build(ctx, this.width, this.height);
-
         const img = await this.style.loadImg();
         const sw: number = Math.min(parseSize(this._cellWidth, img.width), img.width),
               sh: number = Math.min(parseSize(this._cellHeight, img.height), img.height);

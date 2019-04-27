@@ -27,15 +27,17 @@ engine
 const layer0 = engine.getLayer(0);
 const layer1 = engine.getLayer(1);
 
-const controls = new Array(10).fill(0).map((v, i) => new Container(i));
+const controls = new Array(10).fill(0).map((v, i) => new Container(i, true));
 controls[0].attr({
     width: 200,
     height: 100,
     background: '#e00',
     rotation: Math.PI / 4,
     // opacity: 0.6,
-    scale: 1.2,
+    scale: 0.5,
     border: 10,
+    // left: 20,
+    // top: 100,
     borderColor: '#ccc',
     // origin: [0, 0],
     // clip: true
@@ -75,8 +77,8 @@ layer0.add(controls[0]);
 engine.render();
 
 const animation = new Canvas2DAnimation(1000, Infinity);
-animation.addFrame(1, {height: '100%'});
-animation.setElement(controls[2]);
+animation.addFrame(1, {scale: 1.5});
+animation.setElement(controls[0]);
 
 console.log(animation);
 animation.start();
