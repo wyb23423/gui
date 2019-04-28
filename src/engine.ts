@@ -1,8 +1,12 @@
 import { Layer } from "./layer";
+import { addHandler, getPosition } from "./core/dom";
+import { IGuiEvent } from "./core/event";
+import { Canvas2DElement } from "./node/element";
 
 export class Engine {
     private _layers: Map<number, Layer> = new Map();
-    private _timer?: number
+    private _timer?: number;
+    private _preTarget?: Canvas2DElement;
 
     constructor(private _root: HTMLElement) {
         Object.assign(_root.style, {
@@ -15,6 +19,8 @@ export class Engine {
         if(!['relative', 'absolute', 'fixed'].includes(_root.style.position)){
             _root.style.position = 'relative';
         }
+
+        this._initEvent();
     }
 
     getLayer(z: number){
@@ -71,7 +77,11 @@ export class Engine {
         }
 
         this._layers.forEach(this.removeLayer, this);
-        this._root = null;
+        this._root = this._preTarget = null;
+    }
+
+    resize() {
+        this._layers.forEach(v => v.resize(this._root.offsetWidth, this._root.offsetHeight));
     }
 
     private _addLayerToDom(layer: Layer){
@@ -86,5 +96,55 @@ export class Engine {
         this._root.appendChild(layer.canvas);
 
         return this;
+    }
+
+    private _initEvent() {
+        const eventNames = [
+            'dbclick', 'click', 'mousedown', 'mouseup', 'mousemove',
+            'touchstart', 'touchmove', 'touchend'
+        ];
+
+        eventNames.forEach(type => {
+            addHandler(this._root, type, (e: Event) => {
+                e = e || window.event;
+                let {x, y} = getPosition(this._root, <MouseEvent>e);
+                x *= devicePixelRatio;
+                y *= devicePixelRatio;
+                const target = this._getTarget(x, y);
+
+                if(target) {
+                    const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
+                    if(type === 'mousemove' || type === 'touchmove') {
+                        this._moveHandler(guiEvent, e, type);
+                    } else {
+                        target.notifyEvent(type, e, guiEvent);
+                    }
+                }
+            });
+        })
+    }
+
+    private _moveHandler(guiEvent: IGuiEvent, e: Event, type: 'mousemove' | 'touchmove') {
+        if(this._preTarget === guiEvent.target) {
+            guiEvent.target.notifyEvent(type, e, guiEvent);
+        } else {
+            if(this._preTarget) {
+                this._preTarget.notifyEvent('mouseout', e, {...guiEvent, relatedTarget: guiEvent.target});
+            }
+            guiEvent.target.notifyEvent('mouseover', e, {...guiEvent, relatedTarget: this._preTarget});
+        }
+
+        this._preTarget = guiEvent.target;
+    }
+
+    private _getTarget(x: number, y: number) {
+        const layers = Array.from(this._layers.keys()).sort((a, b) => b - a);
+        for(const layer of layers) {
+            const target = this._layers.get(layer).getTarget(x, y);
+
+            if(target) {
+                return target;
+            }
+        }
     }
 }

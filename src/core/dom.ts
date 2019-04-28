@@ -71,9 +71,57 @@ export function parseSize(size: number | string, base: number): number {
         if(size.endsWith('%')){
             return base * (parseFloat(size) || 0) / 100;
         } else {
-            return parseFloat(size) || 0;
+            return (parseFloat(size) || 0) * devicePixelRatio;
         }
     }
 
-    return <number>size;
+    return size * devicePixelRatio;
+}
+
+/**
+ * 获取鼠标相对于canvas的位置
+ */
+export function getPosition(el: HTMLElement, e: any) {
+    if(e.offsetX != null && e.offsetY != null) {
+        return {x: e.offsetX, y: e.offsetY};
+    }
+
+    if(el.getBoundingClientRect) {
+        const rect = el.getBoundingClientRect();
+        let clientX = e.clientX, clientY = e.clientY;
+        if(e.touches) {
+            if(!e.touches.length) {
+                return {x: 0, y: 0};
+            }
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    return {x: 0, y: 0};
+}
+
+export function addHandler(element: any, type: string, handler: Function) {
+    if(element.addEventListener){
+        element.addEventListener(type, handler, false);
+    }else if(element.attachEvent){
+        element.attachEvent('on' + type, handler);
+    }else{
+        element['on' + type] = handler;
+    }
+}
+
+export function removeHandler(element: any, type: string, handler: Function){
+    if(element.removeEventListener){
+        element.removeEventListener(type, handler, false);
+    }else if(element.detachEvent){
+        element.detachEvent('on' + type, handler);
+    }else{
+        element['on' + type]=null;
+    }
 }

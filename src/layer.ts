@@ -4,6 +4,7 @@
 import { Canvas2DElement } from "./node/element";
 import { createCanvas } from "./core/dom";
 import { findIndexByBinary } from "./tool/util";
+import { Container } from "./node/container";
 
 export class Layer {
     canvas?: HTMLCanvasElement;
@@ -85,6 +86,24 @@ export class Layer {
         }
 
         return false;
+    }
+
+    resize(wdith: number, height: number) {
+        this.dirty = true;
+        Object.assign(this.canvas.style, {
+            width: `${wdith}px`,
+            height: `${height}px`
+        })
+
+        this.canvas.width = wdith * devicePixelRatio;
+        this.canvas.height = height * devicePixelRatio;
+
+        this.roots.forEach(v => {
+            v.needUpdate = true;
+            if(v instanceof Container) {
+                v.setChildrenProps('needUpdate', true);
+            }
+        })
     }
 
     private async _render(i: number){

@@ -26,7 +26,7 @@ export class Container extends Canvas2DElement {
         super.attr(key, value);
 
         if(this.needUpdate){
-            this._setChildrenProps('needUpdate', true);
+            this.setChildrenProps('needUpdate', true);
         }
 
         return this;
@@ -94,7 +94,7 @@ export class Container extends Canvas2DElement {
     }
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D){
-        this._setChildrenProps('isStatic', false);
+        this.setChildrenProps('isStatic', false);
         const invert = this.transform.invert();
         const maxRect = (await this._getMaxRect()).transform(invert);
 
@@ -137,6 +137,16 @@ export class Container extends Canvas2DElement {
         return false;
     }
 
+    setChildrenProps(key: string, value: any) {
+        this.children.forEach(v => {
+            Reflect.set(v, key, value);
+            v.rect = null;
+            if(v instanceof Container) {
+                v.setChildrenProps(key, value);
+            }
+        });
+    }
+
     private async _getMaxRect() {
         const rect = (await this.getBoundingRect()).clone();
         for(const v of this.children) {
@@ -145,16 +155,6 @@ export class Container extends Canvas2DElement {
         }
 
         return rect;
-    }
-
-    private _setChildrenProps(key: string, value: any) {
-        this.children.forEach(v => {
-            Reflect.set(v, key, value);
-            v.rect = null;
-            if(v instanceof Container) {
-                v._setChildrenProps(key, value);
-            }
-        });
     }
 
     protected _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {

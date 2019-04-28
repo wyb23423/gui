@@ -165,6 +165,10 @@ export class Style {
             old = Reflect.get(this, key.substr(0, key.length - 1));
         }
 
+        if(key === 'border') {
+            value *= devicePixelRatio;
+        }
+
         if(Array.isArray(old)) {
             if(Array.isArray(value)) {
                 if(key === 'borderStyle' && old.length !== value.length) {
@@ -222,6 +226,8 @@ export class Style {
                 const k = <'scale' | 'origin'>key.substr(0, key.length - 1);
                 this[k][key.endsWith('X') ? 0 : 1] = value;
                 break;
+            case 'border':
+                value *= devicePixelRatio;
             default:
                 Reflect.set(this, key, value);
         }

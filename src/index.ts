@@ -34,9 +34,8 @@ controls[0].attr({
     background: '#e00',
     rotation: Math.PI / 4,
     // opacity: 0.6,
-    scale: 0.8,
+    // scale: 2,
     border: 10,
-    left: '-10%',
     // top: 100,
     borderColor: '#ccc',
     // origin: [0, 0],
@@ -76,17 +75,16 @@ controls[0].add(controls[2].add(img));
 layer0.add(controls[0]);
 engine.render();
 
-const animation = new Canvas2DAnimation(1000, Infinity);
-animation.addFrame(1, {left: '50%'});
-animation.addElement(controls[0]);
-
-console.log(animation);
-animation.start();
-
-root.addEventListener('click', event => {
-    const rect = root.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    console.log(layer0.getTarget(x, y));
+controls[0].event.on('click', function(...arg: any[]) {
+    console.log(this, arg)
 })
+
+window.addEventListener('resize', () => {
+    engine.resize();
+})
+// const animation = new Canvas2DAnimation(1000, Infinity);
+// animation.addFrame(1, {left: '50%'});
+// animation.addElement(controls[0]);
+
+// console.log(animation);
+// animation.start();

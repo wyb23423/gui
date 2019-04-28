@@ -234,6 +234,10 @@ export class TextBlock extends Canvas2DElement {
     private _setTextStyle([key, value]: [string, any]) {
         if(!isFontStyle(key)) {
             const k = '_' + key;
+            if(typeof value === 'number') {
+                value *= devicePixelRatio;
+            }
+
             if(Reflect.get(this, k) !== value) {
                 Reflect.set(this, k, value);
 

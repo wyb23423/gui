@@ -1,13 +1,12 @@
+/**
+ * 动画
+ */
+
 import { parseColor, stringify } from "../tool/color";
 import { isImg } from "../tool/util";
 import { Canvas2DElement } from "../node/element";
-import { runInThisContext } from "vm";
 import { getEasing } from "./easing";
 import { Canvas2DImage } from "../node/image";
-
-/**
- * 一个动画
- */
 
 interface AnimationAttr {
     [key: string]: string | number | number[];
@@ -36,10 +35,14 @@ interface AnimationFrame {
     cellId?: number;
 }
 
-const animationKey = 'width,height,scaleX,scaleY,rotation,left,right,top,bottom,opacity,color,background,cellId'.split(',');
-
+const animationKey = [
+    'width', 'height', 'scaleX', 'scaleY', 'rotation', 'left','right',
+    'top', 'bottom', 'opacity', 'color', 'background', 'cellId'
+];
 
 export class Canvas2DAnimation {
+    el: Map<Canvas2DElement, AnimationAttr> = new Map();
+
     private _endCall: Set<Function> = new Set();
 
     private _startTime: number = 0;
@@ -48,8 +51,6 @@ export class Canvas2DAnimation {
     private _isStart: boolean = false;
     private _isPause: boolean = false;
     private _timer?: number;
-
-    private el: Map<Canvas2DElement, AnimationAttr> = new Map();
 
     // ===================================可添加动画的属性
     private width: AnimationAttr = {};
@@ -193,18 +194,20 @@ export class Canvas2DAnimation {
     }
 
     private _play() {
-        const now = Date.now();
-        for(const v of this.el.keys()) {
-            if(v.animation !== this) {
-                this.el.delete(v);
-            }
-        }
         if(this._isStart && this.el.size) {
+            const now = Date.now();
+
             if(now >= this._startTime) {
                 const progress = Math.min(1, (now - this._startTime - this._pauseTime) / this.time);
 
                 if(!this._isPause) {
-                    this.el.forEach((v, e) => e.attr(this._getAttr(progress, v)));
+                    for(const [e, v] of this.el.entries()) {
+                        if(e.animation === this) {
+                            e.attr(this._getAttr(progress, v))
+                        } else {
+                            this.el.delete(e);
+                        }
+                    }
                 } else {
                     this._pauseTime += now - this._prevTime;
                 }
@@ -213,6 +216,7 @@ export class Canvas2DAnimation {
                 }
                 this._prevTime = now;
             }
+
             this._timer = requestAnimationFrame(() => this._play());
         }
     }

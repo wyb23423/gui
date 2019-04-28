@@ -7,10 +7,10 @@
     "strictNullChecks": false,
     "importHelpers": true,
     "moduleResolution": "node",
-    "experimentalDecorators": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
+    "noImplicitThis": false,
     "baseUrl": ".",
     "lib": [
       "dom",

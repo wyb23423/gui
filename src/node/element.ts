@@ -9,6 +9,7 @@ import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { ellipse, parseSize } from "../core/dom";
 import { Canvas2DAnimation } from "../animation/animation";
+import { EventFul, IGuiEvent } from "../core/event";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -16,6 +17,7 @@ export class Canvas2DElement {
     index: number = 0; // 在父容器内部的添加顺序
 
     transform = new Matrix();
+    event = new EventFul();
     parent?: Container;
     layer?: Layer;
     rect?: BoundingRect;
@@ -62,6 +64,10 @@ export class Canvas2DElement {
 
     set animation(animation: Canvas2DAnimation) {
         if(animation !== this._animation) {
+            if(this._animation) {
+                this._animation.el.delete(this);
+            }
+
             this._animation = animation;
             animation && animation.addElement(this);
         }
@@ -76,7 +82,11 @@ export class Canvas2DElement {
             this.parent.remove(this, false);
         }
 
+        this.event.dispose();
         this.style.dispose();
+        if(this._animation) {
+            this._animation.el.delete(this);
+        }
 
         this._cached
         = this._animation
@@ -172,6 +182,15 @@ export class Canvas2DElement {
             if(this.layer){
                 this.layer.dirty = true;
             }
+        }
+    }
+
+
+    notifyEvent(type: string, event: Event, guiEvent: IGuiEvent) {
+        const skip = this.event.notify(type, event, guiEvent, this);
+
+        if(!skip && this.parent) {
+            this.parent.notifyEvent(type, event, guiEvent);
         }
     }
 
