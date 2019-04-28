@@ -7,6 +7,7 @@ export class Engine {
     private _layers: Map<number, Layer> = new Map();
     private _timer?: number;
     private _preTarget?: Canvas2DElement;
+    private _isOut: boolean = true;
 
     constructor(private _root: HTMLElement) {
         Object.assign(_root.style, {
@@ -21,6 +22,9 @@ export class Engine {
         }
 
         this._initEvent();
+
+        _root.addEventListener('mouseleave', () => this._isOut = true);
+        _root.addEventListener('mouseenter', () => this._isOut = false);
     }
 
     getLayer(z: number){
@@ -106,18 +110,20 @@ export class Engine {
 
         eventNames.forEach(type => {
             addHandler(this._root, type, (e: Event) => {
-                e = e || window.event;
-                let {x, y} = getPosition(this._root, <MouseEvent>e);
-                x *= devicePixelRatio;
-                y *= devicePixelRatio;
-                const target = this._getTarget(x, y);
+                if(!this._isOut) {
+                    e = e || window.event;
+                    let {x, y} = getPosition(this._root, <MouseEvent>e);
+                    x *= devicePixelRatio;
+                    y *= devicePixelRatio;
+                    const target = this._getTarget(x, y);
 
-                if(target) {
-                    const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
-                    if(type === 'mousemove' || type === 'touchmove') {
-                        this._moveHandler(guiEvent, e, type);
-                    } else {
-                        target.notifyEvent(type, e, guiEvent);
+                    if(target) {
+                        const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
+                        if(type === 'mousemove' || type === 'touchmove') {
+                            this._moveHandler(guiEvent, e, type);
+                        } else {
+                            target.notifyEvent(type, e, guiEvent);
+                        }
                     }
                 }
             });
