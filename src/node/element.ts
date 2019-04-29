@@ -17,34 +17,34 @@ export class Canvas2DElement {
     index: number = 0; // 在父容器内部的添加顺序
 
     transform = new Matrix();
-    event = new EventFul();
+    rect?: BoundingRect;
     parent?: Container;
     layer?: Layer;
-    rect?: BoundingRect;
 
+    event = new EventFul();
     style: Style = new Style();
     origin: number[] = [0, 0];
     width: number = 0;
     height: number = 0;
-
+    isVisible: boolean = true; // 是否可见
+    needUpdate: boolean = true;
     checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
-    needUpdate: boolean = true;
+    // 用于堆栈式容器设定位移
+    left?: number;
+    top?: number;
 
     private _animation?: Canvas2DAnimation;
 
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
 
-    private isVisible: boolean = true; // 是否可见
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
-
     private _dirty: boolean = true;
+    protected _isStatic: boolean = false; // 是否使用缓存绘制
 
     protected _cached?: HTMLCanvasElement; // 缓存节点
     protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
-
-    protected _isStatic: boolean = false; // 是否使用缓存绘制
 
     constructor(public id: string | number, isStatic: boolean = false) {
         this._isStatic = isStatic;
@@ -395,21 +395,25 @@ export class Canvas2DElement {
     private _updateTransform(){
         const style = this.style;
 
-        let x: number, y: number;
-        if(style.left != null) {
-            x = parseSize(style.left, this._parentWidth);
-        } else if(style.right != null){
-            x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
-        } else {
-            x = parseSize('50%', this._parentWidth) - this.width / 2;
+        let x: number = this.left, y: number = this.top;
+        if(x == null) {
+            if(style.left != null) {
+                x = parseSize(style.left, this._parentWidth);
+            } else if(style.right != null){
+                x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
+            } else {
+                x = parseSize('50%', this._parentWidth) - this.width / 2;
+            }
         }
 
-        if(style.top != null) {
-            y = parseSize(style.top, this._parentHeight);
-        } else if(style.bottom != null){
-            y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
-        } else {
-            y = parseSize('50%', this._parentHeight) - this.height / 2;
+        if(y == null) {
+            if(style.top != null) {
+                y = parseSize(style.top, this._parentHeight);
+            } else if(style.bottom != null){
+                y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
+            } else {
+                y = parseSize('50%', this._parentHeight) - this.height / 2;
+            }
         }
 
         this.transform

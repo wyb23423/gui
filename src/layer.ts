@@ -27,6 +27,9 @@ export class Layer {
             }
 
             el.layer = this;
+            el.needUpdate = true;
+            el.left = el.top = null;
+
             const index = findIndexByBinary(
                 mid => el.style.zIndex - this.roots[mid].style.zIndex,
                 this.roots.length
@@ -42,7 +45,7 @@ export class Layer {
     remove(el: Canvas2DElement, dispose: boolean = true){
         const i: number = this.roots.findIndex(v => v === el);
         if(i >= 0) {
-            el.layer = el.rect = null;
+            el.layer = null;
             this.roots.splice(i, 0);
 
             if(dispose) {

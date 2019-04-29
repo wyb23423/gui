@@ -75,7 +75,7 @@ export function parseSize(size: number | string, base: number): number {
         }
     }
 
-    return size * devicePixelRatio;
+    return (size || 0) * devicePixelRatio;
 }
 
 /**
@@ -113,15 +113,5 @@ export function addHandler(element: any, type: string, handler: Function) {
         element.attachEvent('on' + type, handler);
     }else{
         element['on' + type] = handler;
-    }
-}
-
-export function removeHandler(element: any, type: string, handler: Function){
-    if(element.removeEventListener){
-        element.removeEventListener(type, handler, false);
-    }else if(element.detachEvent){
-        element.detachEvent('on' + type, handler);
-    }else{
-        element['on' + type]=null;
     }
 }

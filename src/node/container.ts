@@ -49,7 +49,10 @@ export class Container extends Canvas2DElement {
     remove(el: Canvas2DElement, dispose: boolean = true){
         const i = this.children.findIndex(v => v === el);
         if(i >= 0){
-            el.parent = el.rect = null;
+            el.parent = null;
+            if(el instanceof Container) {
+                el.setChildrenProps('needUpdate', true);
+            }
             this.children.splice(i, 1);
 
             if(dispose) {
@@ -70,6 +73,8 @@ export class Container extends Canvas2DElement {
                 parent.remove(el, false);
             }
             el.parent = this;
+            el.left = el.top = null;
+            el.needUpdate = true;
 
             el.index = this.children.length;
             const index = findIndexByBinary(
@@ -140,7 +145,6 @@ export class Container extends Canvas2DElement {
     setChildrenProps(key: string, value: any) {
         this.children.forEach(v => {
             Reflect.set(v, key, value);
-            v.rect = null;
             if(v instanceof Container) {
                 v.setChildrenProps(key, value);
             }

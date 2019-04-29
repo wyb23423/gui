@@ -23,8 +23,8 @@ export class Engine {
 
         this._initEvent();
 
-        _root.addEventListener('mouseleave', () => this._isOut = true);
-        _root.addEventListener('mouseenter', () => this._isOut = false);
+        addHandler(_root, 'mouseleave', () => this._isOut = true);
+        addHandler(_root, 'mouseenter', () => this._isOut = false);
     }
 
     getLayer(z: number){

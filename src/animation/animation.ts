@@ -225,7 +225,7 @@ export class Canvas2DAnimation {
         const attr: AnimationFrame = {};
 
         animationKey.forEach(k => {
-            const thisAttr: any = Reflect.get(this, k);
+            const thisAttr: any = {...Reflect.get(this, k)};
             thisAttr[0] = thisAttr[0] == null ? Reflect.get(zeroFrame, k) : thisAttr[0];
 
             const frames = Object.keys(thisAttr).sort((a, b) => +a - +b);
