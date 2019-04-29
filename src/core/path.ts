@@ -5,7 +5,7 @@
 import { Vector2 } from "../lib/vector";
 import * as bbox from '../lib/bbox';
 import { BoundingRect } from "./bounding_rect";
-import { ellipse } from "./dom";
+import { ellipse } from "../tool/paint";
 
 // =====================================
 enum CMD {

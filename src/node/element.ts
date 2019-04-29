@@ -1,5 +1,6 @@
 /**
  * 节点基类
+ * 各尺寸尽可能为偶数
  */
 
 import { Matrix } from "../lib/matrix";
@@ -7,30 +8,29 @@ import { Layer } from "../layer";
 import { Container } from "./container";
 import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
-import { ellipse, parseSize } from "../core/dom";
+import { parseSize } from "../core/dom";
 import { Canvas2DAnimation } from "../animation/animation";
 import { EventFul, IGuiEvent, EventType } from "../core/event";
 import { createId } from "../tool/util";
+import { buildPath } from "../tool/paint";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
 
     index: number = 0; // 在父容器内部的添加顺序
-
-    transform = new Matrix();
-    rect?: BoundingRect;
     parent?: Container;
     layer?: Layer;
 
+    transform = new Matrix();
+    rect?: BoundingRect;
     event = new EventFul();
+    checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
+
+    isVisible: boolean = true; // 是否可见
     style: Style = new Style();
     origin: number[] = [0, 0];
     width: number = 0;
     height: number = 0;
-    isVisible: boolean = true; // 是否可见
-    checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
-
-    // 用于堆栈式容器设定位移
     left?: number;
     top?: number;
 
@@ -221,17 +221,22 @@ export class Canvas2DElement {
 
     async build(ctx: CanvasRenderingContext2D) {
         const border = this.style.border;
-        const width = this.width - border;
-        const height = this.height - border;
+        let width = this.width - border;
+        let height = this.height - border;
 
-        this.buildPath(ctx, 0, 0, width, height);
+        buildPath(ctx, 0, 0, width, height, this.style.borderRadius);
         await this.style.build(ctx, width, height);
 
         if(border){
-            ctx.stroke();
+            this.style.borderColor && ctx.stroke();
 
             if(this.style.background){
-                this.buildPath(ctx, border / 2, border / 2, width - border, height - border);
+                buildPath(
+                    ctx,
+                    border / 2, border / 2,
+                    width - border, height - border,
+                    this.style.borderRadius
+                );
             }
         }
 
@@ -243,6 +248,13 @@ export class Canvas2DElement {
         this._ignore = false;
     }
     // =============================================================
+    /**
+     * 计算节点宽高
+     */
+    async calcSize(){
+        this.width = parseSize(this.style.width, this._parentWidth);
+        this.height = parseSize(this.style.height, this._parentHeight);
+    }
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
         const canvas = document.createElement('canvas');
@@ -251,6 +263,7 @@ export class Canvas2DElement {
 
         const cachedCtx = canvas.getContext('2d');
         cachedCtx.save();
+        cachedCtx.translate(this.style.border / 2, this.style.border / 2);
         await this.build(cachedCtx);
         cachedCtx.restore();
 
@@ -258,18 +271,8 @@ export class Canvas2DElement {
     }
 
     /**
-     * 仅创建路径, 不绘制, 可用于检测一个点是否在节点内部
+     * 获取鼠标在哪个元素上
      */
-    buildPath(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number){
-        ctx.beginPath();
-        if(this.style.borderRadius){
-            this.buildRadiusPath(ctx, x, y, width, height);
-        } else {
-            ctx.rect(x, y, width, height);
-        }
-        ctx.closePath();
-    }
-
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number){
         if(this._contain(ctx, x, y)){
             return <Canvas2DElement>this;
@@ -278,11 +281,9 @@ export class Canvas2DElement {
         return false;
     }
 
-    async calcSize(){
-        this.width = parseSize(this.style.width, this._parentWidth);
-        this.height = parseSize(this.style.height, this._parentHeight);
-    }
-
+    /**
+     * 设置画布变换
+     */
     setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
         const {a, b, c, d, e, f} = transform;
 
@@ -292,6 +293,9 @@ export class Canvas2DElement {
         this.beforeBuild();
     }
 
+    /**
+     * 获取父级尺寸
+     */
     getParentSize(key: 'width' | 'height') {
         if(key === 'width') {
             return this._parentWidth;
@@ -327,7 +331,12 @@ export class Canvas2DElement {
 
             ctx.setTransform(clipParent.transform);
             ctx.translate(border, border);
-            clipParent.buildPath(ctx, 0, 0, clipParent.width - border * 2, clipParent.height - border * 2);
+            buildPath(
+                ctx, 0, 0,
+                clipParent.width - border * 2,
+                clipParent.height - border * 2,
+                clipParent.style.borderRadius
+            );
 
             if(!ctx.isPointInPath(x, y)) {
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -338,63 +347,13 @@ export class Canvas2DElement {
         }
 
         ctx.setTransform(this.transform);
-        this.buildPath(ctx, 0, 0, this.width, this.height);
+        buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         const result = ctx.isPointInPath(x, y);
         this.checkedPoint.set(pk, result);
 
         return result;
-    }
-
-    /**
-     * 构建圆角矩形。性能消耗较大, 应减少使用, 或静态时使用
-     *
-     * 在 border存在 时圆角处会出现缝隙
-     * 且 border越大 缝隙越大
-     */
-    protected buildRadiusPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number){
-        const radius = this.style.borderRadius.map(v => {
-            const res = [v, v];
-            if(v <= 1) {
-                res[0] *= w;
-                res[1] *= h;
-            }
-            res[0] = Math.min(res[0], w / 2);
-            res[1] = Math.min(res[1], h / 2);
-
-            return res;
-        });
-
-        ctx.moveTo(x + w, y + radius[1][1]);
-
-        // 右上
-        ellipse(ctx, x + w - radius[1][0], y + radius[1][1], radius[1][0], radius[1][1], 0, -Math.PI / 2, 0, 0);
-        // 上
-        if(Math.abs(radius[0][0] - w + radius[1][0]) > 1e-3){
-            ctx.lineTo(x + radius[0][0], y);
-        }
-
-        // 左上
-        ellipse(ctx, x + radius[0][0], y + radius[0][1], radius[0][0], radius[0][1], -Math.PI / 2, Math.PI, 0, 0);
-        // 左
-        if(Math.abs(h - radius[0][1] - radius[3][1]) > 1e-3) {
-            ctx.lineTo(x, y + h - radius[3][1]);
-        }
-
-        // 左下
-        ellipse(ctx, x + radius[3][0], y + h - radius[3][1], radius[3][0], radius[3][1], Math.PI, Math.PI / 2, 0, 0);
-        // 下
-        if(Math.abs(w - radius[2][0] - radius[3][0]) > 1e-3) {
-            ctx.lineTo(x + w - radius[2][0], y + h);
-        }
-
-        // 右下
-        ellipse(ctx, x + w - radius[2][0], y + h - radius[2][1], radius[2][0], radius[2][1], Math.PI / 2, 0, 0, 0);
-        // 右
-        if(Math.abs(radius[1][1] - h + radius[2][1]) > 1e-3) {
-            ctx.lineTo(x + w, y + radius[1][1]);
-        }
     }
 
     private _updateTransform(){
@@ -424,8 +383,8 @@ export class Canvas2DElement {
         this.transform
             .toUnit()
             .translate(-this.origin[0], -this.origin[1])
-            .scale(this.style.scale)
-            .rotate(this.style.rotation)
+            .scale(style.scale)
+            .rotate(style.rotation)
             .translate(x + this.origin[0], y + this.origin[1]);
 
         if(this.parent){

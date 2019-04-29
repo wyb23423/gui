@@ -34,7 +34,7 @@ export class TextBlock extends Canvas2DElement {
 
     private _modifyText: boolean = false;
 
-    constructor(id: string | number, isStatic: boolean = false) {
+    constructor(id: string | number, isStatic: boolean = true) {
         super(id, isStatic);
 
         this.style.height = 0; // 清除默认高设置
@@ -70,10 +70,11 @@ export class TextBlock extends Canvas2DElement {
     }
 
     async build(ctx: CanvasRenderingContext2D) {
-        await super.build(ctx);
-
         const last = this._textMap[this._textMap.length - 1];
         if(last) {
+            await super.build(ctx);
+            ctx.clip();
+
             ctx.textBaseline = 'top';
             const color = this.style.color || (this.parent ? this.parent.style.color : '');
             if(color) {
@@ -97,6 +98,10 @@ export class TextBlock extends Canvas2DElement {
                 }
             })
         }
+
+        if(this.isStatic) {
+            this._textMap.length = 0;
+        }
     }
 
     setTextStyle(key: string | TextStyle, value?: any) {
@@ -115,16 +120,15 @@ export class TextBlock extends Canvas2DElement {
             }
         }
 
+        this.markDirty();
+
         return this;
     }
 
-    async update() {
-        if(!this._text) {
-            this.style.width = 0;
-        }
-        this.style.border = 0;
+    beforeUpdate() {
+        super.beforeUpdate();
 
-        super.update();
+        this.style.border = 0;
     }
 
     async calcSize(){
@@ -154,18 +158,34 @@ export class TextBlock extends Canvas2DElement {
         if(this._text) {
             const font = this._font.filter(v => v != null && v !== '').join(' ');
             const lineHeight = (this._lineHeight || getLineHeight(font));
+
+            if(!this.width) {
+                this.width = Infinity;
+            }
+
             const ellipsisWidth = getWidth('...', font);
 
             const lines = this._text.replace(/\n*$/, '').split('\n');
             const options = { y: 0, lineHeight, font, ellipsisWidth };
 
+            let maxWidth: number = 0;
             for(const v of lines) {
                 this._setTextMap(v, options);
+
+                const last = this._textMap[this._textMap.length - 1];
+                if(last) {
+                    maxWidth = Math.max(maxWidth, last.x + last.width);
+                }
+
                 options.y += lineHeight;
 
                 if(this.height > 0 && options.y > this.height) {
-                    return;
+                    break;
                 }
+            }
+
+            if(this.width === Infinity) {
+                this.width = maxWidth;
             }
         }
     }
@@ -205,7 +225,11 @@ export class TextBlock extends Canvas2DElement {
                 } else {
                     return this._addEllipsis(textData, options.ellipsisWidth);
                 }
-            } else if(i < line.length - 1 && width + options.ellipsisWidt > this.width) {
+            } else if(
+                this._textWarp === 'ellipsis'
+                && i < line.length - 1
+                && width + options.ellipsisWidth > this.width
+            ) {
                 return this._addEllipsis(textData, options.ellipsisWidth);
             }
 

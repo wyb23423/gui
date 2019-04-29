@@ -35,32 +35,6 @@ export const getContext = cached(() => {
     return document.createElement('canvas').getContext('2d');
 })
 
-// 画一个圆弧
-export function ellipse(
-    ctx: CanvasRenderingContext2D,
-    cx: number, cy: number,
-    rx: number, ry: number,
-    startAngle: number, endAngle: number,
-    rotation: number,
-    anticlockwise: number,
-){
-    if(Math.abs(rx - ry) > Number.EPSILON * 2 ** 10){ // 椭圆
-        ctx.save();
-
-        const scaleX = rx > ry ? 1 : rx / ry;
-        const scaleY = rx > ry ? ry / rx : 1;
-
-        ctx.translate(cx, cy);
-        ctx.rotate(rotation);
-        ctx.scale(scaleX, scaleY);
-        ctx.arc(0, 0, Math.max(rx, ry), startAngle, endAngle, !anticlockwise);
-
-        ctx.restore();
-    } else {
-        ctx.arc(cx, cy, rx, startAngle, endAngle, !anticlockwise);
-    }
-}
-
 /**
  * 解析css尺寸
  * @param size 尺寸设置
