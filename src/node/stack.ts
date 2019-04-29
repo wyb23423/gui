@@ -1,10 +1,11 @@
 /**
  * 堆栈式容器
- * 垂直排列时-子元素top/bottom为其上下间隙，百分比height/top/bottom视为0;
- * 横向排列时-子元素left/right为其左右间隙，百分比width/left/right视为0;
+ * 垂直排列时-子元素top/bottom为其上下间隙
+ * 横向排列时-子元素left/right为其左右间隙
  */
 import { Container } from "./container";
 import { parseSize } from "../core/dom";
+import { Canvas2DElement } from "./element";
 
 export class Stack extends Container {
     private _isVertical: boolean = true; // 是否是垂直排列
@@ -23,8 +24,25 @@ export class Stack extends Container {
         if(isVertical !== this._isVertical) {
             this._isVertical = isVertical;
             this.needUpdate = true;
-            this.setChildrenProps('needUpdate', true);
         }
+    }
+
+    remove(el: Canvas2DElement, dispose: boolean = true){
+        super.remove(el, dispose);
+        if(!(this.style.width && this.style.height)) {
+            this.needUpdate = true;
+        }
+
+        return this;
+    }
+
+    add(el: Canvas2DElement){
+        super.add(el);
+        if(!(this.style.width && this.style.height)) {
+            this.needUpdate = true;
+        }
+
+        return this;
     }
 
     async calcSize() {
@@ -39,7 +57,7 @@ export class Stack extends Container {
             otherSizeKey = 'height';
         }
         const oldSize = this[sizeKey];
-        this[sizeKey] = 0;
+        this[sizeKey] = this.getParentSize(sizeKey);
 
         const [size, max] = await this._calcSize(sizeKey, positionKey, otherSizeKey);
 

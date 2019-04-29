@@ -12,6 +12,15 @@ export class Container extends Canvas2DElement {
 
     children: Canvas2DElement[] = [];
 
+    set needUpdate(needUpdate: boolean) {
+        if(needUpdate !== this._needUpdate) {
+            this._needUpdate = needUpdate;
+            if(needUpdate && !(this.isStatic && this._cached)) {
+                this.children.forEach(v => v.needUpdate = true);
+            }
+        }
+    }
+
     attr(key: string | Istyle, value?: any){
         if(typeof key === 'string') {
             key = {[key]: value};
@@ -24,10 +33,6 @@ export class Container extends Canvas2DElement {
         }
 
         super.attr(key, value);
-
-        if(this.needUpdate){
-            this.setChildrenProps('needUpdate', true);
-        }
 
         return this;
     }
@@ -50,9 +55,6 @@ export class Container extends Canvas2DElement {
         const i = this.children.findIndex(v => v === el);
         if(i >= 0){
             el.parent = null;
-            if(el instanceof Container) {
-                el.setChildrenProps('needUpdate', true);
-            }
             this.children.splice(i, 1);
 
             if(dispose) {

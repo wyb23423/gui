@@ -9,7 +9,8 @@ import { BoundingRect } from "../core/bounding_rect";
 import { Style, Istyle } from "../core/style";
 import { ellipse, parseSize } from "../core/dom";
 import { Canvas2DAnimation } from "../animation/animation";
-import { EventFul, IGuiEvent } from "../core/event";
+import { EventFul, IGuiEvent, EventType } from "../core/event";
+import { createId } from "../tool/util";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -27,35 +28,29 @@ export class Canvas2DElement {
     width: number = 0;
     height: number = 0;
     isVisible: boolean = true; // 是否可见
-    needUpdate: boolean = true;
     checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
     // 用于堆栈式容器设定位移
     left?: number;
     top?: number;
 
-    private _animation?: Canvas2DAnimation;
+    protected _needUpdate: boolean = true;
+    protected _cached?: HTMLCanvasElement; // 缓存节点
+    protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
 
+    private _animation?: Canvas2DAnimation;
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
 
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
     private _dirty: boolean = true;
-    protected _isStatic: boolean = false; // 是否使用缓存绘制
 
-    protected _cached?: HTMLCanvasElement; // 缓存节点
-    protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
-
-    constructor(public id: string | number, isStatic: boolean = false) {
-        this._isStatic = isStatic;
+    constructor(public id: string | number, public isStatic: boolean = false) {
+        this.id = createId(id);
     }
 
-    get isStatic(){
-        return this._isStatic;
-    }
-
-    set isStatic(isStatic: boolean){
-        this._isStatic = isStatic;
+    set needUpdate(needUpdate: boolean) {
+        this._needUpdate = needUpdate;
     }
 
     get animation() {
@@ -107,7 +102,7 @@ export class Canvas2DElement {
             ctx.save();
             this.style.setAlpha(ctx);
 
-            if(this._isStatic){
+            if(this.isStatic){
                 if(!this._cached){
                     this._cached = await this.buildCached(this.width, this.height, ctx);
                 }
@@ -158,13 +153,13 @@ export class Canvas2DElement {
      * 获取节点AABB类包围盒
      */
     async getBoundingRect() {
-        if(this.needUpdate) {
+        if(this._needUpdate) {
             await this.update();
 
             this.rect = new BoundingRect(0, 0, this.width, this.height)
                             .transform(this.transform);
 
-            this.needUpdate = false;
+            this._needUpdate = false;
         }
 
         return this.rect;
@@ -185,8 +180,7 @@ export class Canvas2DElement {
         }
     }
 
-
-    notifyEvent(type: string, event: Event, guiEvent: IGuiEvent) {
+    notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
         const skip = this.event.notify(type, event, guiEvent, this);
 
         if(!skip && this.parent) {
@@ -203,7 +197,7 @@ export class Canvas2DElement {
         this._parentWidth = this._getBaseSize('width');
         this._parentHeight = this._getBaseSize('height');
 
-        if(!(this._isStatic && this._cached)){
+        if(!(this.isStatic && this._cached)){
             await this.calcSize();
             this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
             if(this.style.border < 0){
@@ -298,6 +292,16 @@ export class Canvas2DElement {
         this.beforeBuild();
     }
 
+    getParentSize(key: 'width' | 'height') {
+        if(key === 'width') {
+            return this._parentWidth;
+        } else if(key === 'height') {
+            return this._parentHeight;
+        }
+
+        return 0;
+    }
+
     /**
      * 检测一个点是否落在此节点上
      * 未落在父节点上的点全视为未落在此节点上(减少遍历检测的次数)
@@ -326,6 +330,7 @@ export class Canvas2DElement {
             clipParent.buildPath(ctx, 0, 0, clipParent.width - border * 2, clipParent.height - border * 2);
 
             if(!ctx.isPointInPath(x, y)) {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
                 this.checkedPoint.set(pk, false);
 
                 return false;

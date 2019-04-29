@@ -1,6 +1,6 @@
 import { Layer } from "./layer";
 import { addHandler, getPosition } from "./core/dom";
-import { IGuiEvent } from "./core/event";
+import { IGuiEvent, EventType } from "./core/event";
 import { Canvas2DElement } from "./node/element";
 
 export class Engine {
@@ -103,12 +103,12 @@ export class Engine {
     }
 
     private _initEvent() {
-        const eventNames = [
+        const eventNames: EventType[] = [
             'dbclick', 'click', 'mousedown', 'mouseup', 'mousemove',
             'touchstart', 'touchmove', 'touchend'
         ];
 
-        eventNames.forEach(type => {
+        eventNames.forEach((type : EventType) => {
             addHandler(this._root, type, (e: Event) => {
                 if(!this._isOut) {
                     e = e || window.event;

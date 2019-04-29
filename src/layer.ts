@@ -101,12 +101,7 @@ export class Layer {
         this.canvas.width = wdith * devicePixelRatio;
         this.canvas.height = height * devicePixelRatio;
 
-        this.roots.forEach(v => {
-            v.needUpdate = true;
-            if(v instanceof Container) {
-                v.setChildrenProps('needUpdate', true);
-            }
-        })
+        this.roots.forEach(v => v.needUpdate = true);
     }
 
     private async _render(i: number){

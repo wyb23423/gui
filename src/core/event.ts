@@ -3,6 +3,10 @@
  */
 import { Canvas2DElement } from "../node/element";
 
+export type EventType = 'dbclick' | 'click' | 'mousedown' | 'mouseup' | 'mousemove'
+                            | 'mouseout' | 'mouseover'
+                            | 'touchstart' | 'touchmove' | 'touchend';
+
 export interface IGuiEvent {
     x: number;
     y: number;
@@ -14,13 +18,13 @@ export interface IGuiEvent {
 export class EventFul {
     private _handlers: {[type: string]: Set<Function>} = {};
 
-    on(type: string, fn: Function) {
+    on(type: EventType, fn: Function) {
         (this._handlers[type] || (this._handlers[type] = new Set())).add(fn);
 
         return this;
     }
 
-    off(type: string, fn: Function) {
+    off(type: EventType, fn: Function) {
         const handlers = this._handlers[type];
         if(handlers) {
             handlers.delete(fn);
@@ -29,7 +33,7 @@ export class EventFul {
         return this;
     }
 
-    notify(type: string, event: Event, guiEvent: IGuiEvent, context: Canvas2DElement) {
+    notify(type: EventType, event: Event, guiEvent: IGuiEvent, context: Canvas2DElement) {
         const handlers = this._handlers[type];
         if(handlers) {
             handlers.forEach(fn => fn.call(context, guiEvent, event));

@@ -135,3 +135,18 @@ export const line2hump = cached((str: string) => {
 export const hump2line = cached((str: string, line: string = '-') => {
     return str.replace(/[A-Z]/g, (w: string) => line + w.toLowerCase());
 })
+
+export const createId = (() => {
+    const ids: Set<string | number> = new Set();
+    let num: number = 0;
+
+    return function(id: string | number) {
+        if(ids.has(id)) {
+            id = `${Date.now().toString(16)}${num.toString(16).padStart(6, '0')}`
+            num++;
+        }
+        ids.add(id);
+
+        return id;
+    }
+})()
