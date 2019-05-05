@@ -8,6 +8,8 @@ import { IGuiEvent } from "../core/event";
 import { addHandler, removeHandler } from "../core/dom";
 
 export class Scroll extends Container {
+    readonly type: string = 'scroll';
+
     children: Stack[] = [];
     move: number = 0; // 移动距离, [-this._maxMove, 0]
     more: number = 10; // 回弹效果
@@ -18,8 +20,8 @@ export class Scroll extends Container {
     private _maxMove: number = 0;
 
     constructor(id: number | string, isStatic?: boolean) {
-        super(id, false);
-        super.add(new Stack(`__scroll__${id}`, isStatic));
+        super(id, isStatic);
+        super.add(new Stack(`__scroll__${id}`).attr('zIndex', -Number.MAX_VALUE));
 
         this.event.on('mousedown', this._downCall);
         this.event.on('mousemove', this._moveCall);
@@ -66,18 +68,13 @@ export class Scroll extends Container {
     beforeUpdate() {
         super.beforeUpdate();
 
+        this.style.clip = true;
+
+        this.children.length = 1;
+        this.children[0].style[this._isVertical ? 'top' : 'left'] = this.move;
+        this.children[0].isVertical = this._isVertical;
         this.children[0].isStatic = this.isStatic;
         this.isStatic = false;
-    }
-
-    afterUpdate() {
-        super.afterUpdate();
-
-        this.style.clip = true;
-        this.children[0].style[this._isVertical ? 'top' : 'left'] = this.move;
-        this.children.length = 1;
-
-        this.children[0].isVertical = this._isVertical;
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
@@ -96,7 +93,7 @@ export class Scroll extends Container {
             if(event.preventDefault){
                 event.preventDefault();
             }else{
-                event.returnValue=false;
+                event.returnValue = false;
             }
 
             const now = this._isVertical ? guiEvent.y : guiEvent.x;

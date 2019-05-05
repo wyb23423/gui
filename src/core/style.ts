@@ -79,7 +79,7 @@ export class Style {
     src?: string; // 图片路径
 
     border: number = 0;
-    borderColor: string = '#000';
+    borderColor: string | CanvasGradient = '#000';
     borderRadius?: number[];
     borderStyle: number[] = [];
 

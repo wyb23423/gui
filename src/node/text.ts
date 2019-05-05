@@ -17,6 +17,9 @@ const canModifyTextMap = makeCheckExist('lineHeight letterSpacing textWarp inden
 export class TextBlock extends Canvas2DElement {
     readonly type: string = 'text';
 
+    text: string = '';
+    textMap: TextMap[] = [];
+
     private _textAlign: TextAlign = 'left'; // 文本横向对齐
     private _verticalAlign: VerticalAlign = 'top';// 文本垂直对齐
 
@@ -28,9 +31,6 @@ export class TextBlock extends Canvas2DElement {
     private _indent: number = 0;
 
     private _font: string[] = [null, null, null, '12px', 'sans-serif']; // 文本设置
-
-    private _text: string = '';
-    private _textMap: TextMap[] = [];
 
     private _modifyText: boolean = false;
 
@@ -70,7 +70,7 @@ export class TextBlock extends Canvas2DElement {
     }
 
     async build(ctx: CanvasRenderingContext2D) {
-        const last = this._textMap[this._textMap.length - 1];
+        const last = this.textMap[this.textMap.length - 1];
         if(last) {
             await super.build(ctx);
             ctx.clip();
@@ -89,7 +89,7 @@ export class TextBlock extends Canvas2DElement {
                 ctx.font = font;
             }
 
-            this._textMap.forEach(v => {
+            this.textMap.forEach(v => {
                 const x = this._adjustX(last, v);
                 const y = this._adjustY(last, v);
                 ctx.fillText(v.char, x, y);
@@ -100,7 +100,7 @@ export class TextBlock extends Canvas2DElement {
         }
 
         if(this.isStatic) {
-            this._textMap.length = 0;
+            this.textMap.length = 0;
         }
     }
 
@@ -113,7 +113,10 @@ export class TextBlock extends Canvas2DElement {
         }
 
         if(this._modifyText && !this.isStatic) {
-            if(this.height <= 0 && this.style.top == null){
+            if(
+                !this.style.height && this.style.top == null
+                || !this.style.width && this.style.left == null
+            ){
                 this.needUpdate = true;
             } else if(!this.needUpdate){
                 this._parseText();
@@ -140,7 +143,7 @@ export class TextBlock extends Canvas2DElement {
         if(this.height <= 0) {
             this.height = 0;
 
-            const last = this._textMap[this._textMap.length - 1];
+            const last = this.textMap[this.textMap.length - 1];
             if(last) {
                 this.height = last.y + last.height;
             }
@@ -148,31 +151,31 @@ export class TextBlock extends Canvas2DElement {
     }
 
     private _parseText() {
-        this._textMap.length = 0;
+        this.textMap.length = 0;
 
         // 静态文本只解析一次
         if(this.isStatic && this._cached) {
             return;
         }
 
-        if(this._text) {
+        if(this.text) {
             const font = this._font.filter(v => v != null && v !== '').join(' ');
             const lineHeight = (this._lineHeight || getLineHeight(font));
 
-            if(!this.width) {
+            if(!this.style.width) {
                 this.width = Infinity;
             }
 
             const ellipsisWidth = getWidth('...', font);
 
-            const lines = this._text.replace(/\n*$/, '').split('\n');
+            const lines = this.text.replace(/\n*$/, '').split('\n');
             const options = { y: 0, lineHeight, font, ellipsisWidth };
 
             let maxWidth: number = 0;
             for(const v of lines) {
                 this._setTextMap(v, options);
 
-                const last = this._textMap[this._textMap.length - 1];
+                const last = this.textMap[this.textMap.length - 1];
                 if(last) {
                     maxWidth = Math.max(maxWidth, last.x + last.width);
                 }
@@ -192,7 +195,7 @@ export class TextBlock extends Canvas2DElement {
 
     private _setTextMap(line: string, options: any) {
         let width: number = 0;
-        if(!this._textMap.length) {
+        if(!this.textMap.length) {
             width += this._indent;
         }
 
@@ -233,7 +236,7 @@ export class TextBlock extends Canvas2DElement {
                 return this._addEllipsis(textData, options.ellipsisWidth);
             }
 
-            this._textMap.push(textData);
+            this.textMap.push(textData);
         }
     }
 
@@ -241,7 +244,7 @@ export class TextBlock extends Canvas2DElement {
         if(this._textWarp === 'ellipsis') {
             textData.char = '...';
             textData.width = ellipsisWidth;
-            this._textMap.push(textData);
+            this.textMap.push(textData);
         }
     }
 
@@ -257,7 +260,7 @@ export class TextBlock extends Canvas2DElement {
 
     private _setTextStyle([key, value]: [string, any]) {
         if(!isFontStyle(key)) {
-            const k = '_' + key;
+            const k = key === 'text' ? key : '_' + key;
             if(typeof value === 'number') {
                 value *= devicePixelRatio;
             }

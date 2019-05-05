@@ -8,6 +8,8 @@ import { parseSize } from "../core/dom";
 import { Canvas2DElement } from "./element";
 
 export class Stack extends Container {
+    readonly type: string = 'stack';
+
     private _isVertical: boolean = true; // 是否是垂直排列
 
     constructor(id: number | string, isStatic?: boolean) {

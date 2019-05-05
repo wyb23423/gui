@@ -183,7 +183,7 @@ export class Canvas2DElement {
     notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
         const skip = this.event.notify(type, event, guiEvent, this);
 
-        if(!skip && this.parent) {
+        if(!['change', 'input', 'foucs', 'blur'].includes(type) && !skip && this.parent) {
             this.parent.notifyEvent(type, event, guiEvent);
         }
     }
@@ -230,7 +230,7 @@ export class Canvas2DElement {
         if(border){
             this.style.borderColor && ctx.stroke();
 
-            if(this.style.background){
+            if(this.style.background || this.style.clip){
                 buildPath(
                     ctx,
                     border / 2, border / 2,
@@ -308,7 +308,6 @@ export class Canvas2DElement {
 
     /**
      * 检测一个点是否落在此节点上
-     * 未落在父节点上的点全视为未落在此节点上(减少遍历检测的次数)
      */
     protected _contain(ctx: CanvasRenderingContext2D, x: number, y: number){
         if(this._ignore) {

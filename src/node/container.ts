@@ -129,19 +129,15 @@ export class Container extends Canvas2DElement {
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
-        if(this._contain(ctx, x, y)){
-            for(let i=this.children.length - 1; i>=0; i--){
-                const traget = this.children[i].getTarget(ctx, x, y);
+        for(let i=this.children.length - 1; i>=0; i--){
+            const traget = this.children[i].getTarget(ctx, x, y);
 
-                if(traget) {
-                    return traget;
-                }
+            if(traget) {
+                return traget;
             }
-
-            return <Canvas2DElement>this;
         }
 
-        return false;
+        return this._contain(ctx, x, y) ? this : false;
     }
 
     setChildrenProps(key: string, value: any) {
@@ -151,16 +147,6 @@ export class Container extends Canvas2DElement {
                 v.setChildrenProps(key, value);
             }
         });
-    }
-
-    private async _getMaxRect() {
-        const rect = (await this.getBoundingRect()).clone();
-        for(const v of this.children) {
-            const other =  await (v instanceof Container ?  v._getMaxRect() :  v.getBoundingRect());
-            rect.extend(other);
-        }
-
-        return rect;
     }
 
     protected _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
@@ -177,5 +163,15 @@ export class Container extends Canvas2DElement {
 
             _render(0);
         });
+    }
+
+    private async _getMaxRect() {
+        const rect = (await this.getBoundingRect()).clone();
+        for(const v of this.children) {
+            const other =  await (v instanceof Container ?  v._getMaxRect() :  v.getBoundingRect());
+            rect.extend(other);
+        }
+
+        return rect;
     }
 }

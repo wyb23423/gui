@@ -5,14 +5,15 @@ import { Canvas2DElement } from "../node/element";
 
 export type EventType = 'dbclick' | 'click' | 'mousedown' | 'mouseup' | 'mousemove'
                             | 'mouseout' | 'mouseover'
-                            | 'touchstart' | 'touchmove' | 'touchend';
+                            | 'touchstart' | 'touchmove' | 'touchend'
+                            | 'change' | 'input' | 'focus' | 'blur';
 
 export interface IGuiEvent {
-    x: number;
-    y: number;
+    x?: number;
+    y?: number;
     target: Canvas2DElement;
     relatedTarget?: Canvas2DElement;
-    cancelBubble: boolean;
+    cancelBubble?: boolean;
 }
 
 export class EventFul {

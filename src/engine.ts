@@ -116,14 +116,13 @@ export class Engine {
                     x *= devicePixelRatio;
                     y *= devicePixelRatio;
                     const target = this._getTarget(x, y);
+                    const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
+                    if(type === 'mousemove' || type === 'touchmove') {
+                        this._moveHandler(guiEvent, e, type);
+                    }
 
-                    if(target) {
-                        const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
-                        if(type === 'mousemove' || type === 'touchmove') {
-                            this._moveHandler(guiEvent, e, type);
-                        } else {
-                            target.notifyEvent(type, e, guiEvent);
-                        }
+                    if(target && type !== 'mousemove' && type !== 'touchmove') {
+                        target.notifyEvent(type, e, guiEvent);
                     }
                 }
             });
@@ -132,12 +131,14 @@ export class Engine {
 
     private _moveHandler(guiEvent: IGuiEvent, e: Event, type: 'mousemove' | 'touchmove') {
         if(this._preTarget === guiEvent.target) {
-            guiEvent.target.notifyEvent(type, e, guiEvent);
+            guiEvent.target && guiEvent.target.notifyEvent(type, e, guiEvent);
         } else {
             if(this._preTarget) {
                 this._preTarget.notifyEvent('mouseout', e, {...guiEvent, relatedTarget: guiEvent.target});
             }
-            guiEvent.target.notifyEvent('mouseover', e, {...guiEvent, relatedTarget: this._preTarget});
+            if(guiEvent.target) {
+                guiEvent.target.notifyEvent('mouseover', e, {...guiEvent, relatedTarget: this._preTarget});
+            }
         }
 
         this._preTarget = guiEvent.target;
