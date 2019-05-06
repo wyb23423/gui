@@ -192,6 +192,10 @@ export class Style {
         return old === value;
     }
 
+    /**
+     * 获取Image
+     * @param src 图片路径
+     */
     loadImg(src:string = this.src) {
         if(!isImg(src)) {
             console.warn(`${src}不是有效的图片路径`);

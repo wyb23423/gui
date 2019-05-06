@@ -19,6 +19,10 @@ export class BoundingRect {
         ];
     }
 
+    /**
+     * 合并包围盒
+     * @param other 另一个包围盒
+     */
     extend(other: BoundingRect) {
         const x = Math.min(other.x, this.x);
         const y = Math.min(other.y, this.y);
@@ -31,6 +35,10 @@ export class BoundingRect {
         return this;
     }
 
+    /**
+     * 包围盒变换
+     * @param m 变换矩阵
+     */
     transform(m: Matrix,){
         const thisArr = this.toArray();
         const mArr = m.toArray();
@@ -60,10 +68,16 @@ export class BoundingRect {
         return this;
     }
 
+    /**
+     * 检测一个点是否在此包围盒内部
+     */
     contain(x: number, y: number){
         return x >= this.x && x <= this.x + this.w && y >= this.y && y <= this.y + this.h;
     }
 
+    /**
+     * 检测两个包围盒区域是否相交
+     */
     intersect(
         x: BoundingRect | number = 0,
         y: number = 0,

@@ -104,6 +104,9 @@ export class TextBlock extends Canvas2DElement {
         }
     }
 
+    /**
+     * 设置文本样式
+     */
     setTextStyle(key: string | TextStyle, value?: any) {
         this._modifyText = false;
         if(typeof key === 'string') {

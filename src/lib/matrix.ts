@@ -59,6 +59,8 @@ export class Matrix extends Transform {
 
     // 矩阵求逆
     invert() {
+        // |A| == 0, 矩阵不可逆, 使用js最小精度求近似值
+        // 矩阵不可逆的情况对于变换矩阵而言出现几率通常较低
         const det = this.a * this.d - this.b * this.c || Number.EPSILON;
 
         return new Matrix(

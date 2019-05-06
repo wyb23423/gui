@@ -240,7 +240,7 @@ export class Canvas2DAnimation {
                     let rate = 1 - (+frames[frame] - progress) / (+frames[frame] - +frames[frame - 1]);
                     rate = getEasing(this.easing)(rate);
 
-                    if(Array.isArray(value)) {
+                    if(Array.isArray(value)) { // color、background
                         value = value.map((v, i) => (v - prev[i]) * rate +  prev[i]);
                     } else if(type1 === 'number'){
                         value = (value - prev) * rate + prev;

@@ -28,20 +28,19 @@ export class Canvas2DElement {
 
     isVisible: boolean = true; // 是否可见
     style: Style = new Style();
-    origin: number[] = [0, 0];
-    width: number = 0;
-    height: number = 0;
-    left?: number;
-    top?: number;
+    origin: number[] = [0, 0]; // update时计算出的变换中心
+    width: number = 0; // 通过calcSize计算出的width
+    height: number = 0; // 通过calcSize计算出的height
+    left?: number; // 存在时覆盖style.left设置
+    top?: number;// 存在时覆盖style.top设置
 
-    protected _needUpdate: boolean = true;
+    protected _needUpdate: boolean = true; // 是否需要执行update
     protected _cached?: HTMLCanvasElement; // 缓存节点
     protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
 
     private _animation?: Canvas2DAnimation;
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
-
 
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
     private _dirty: boolean = true;
@@ -185,6 +184,10 @@ export class Canvas2DElement {
         }
     }
 
+    /**
+     * 触发事件
+     * @param type 事件类型
+     */
     notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
         const skip = this.event.notify(type, event, guiEvent, this);
 
@@ -263,6 +266,12 @@ export class Canvas2DElement {
 
     // =============================================================
 
+    /**
+     * 缓存绘制
+     * @param width 缓存canvas的宽
+     * @param height 缓存canvas的高
+     * @param ctx
+     */
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -331,6 +340,7 @@ export class Canvas2DElement {
             return false;
         }
 
+        // =======================================处于裁切路径外的点不在此节点上
         const clipParent = this._getClipParent();
         if(clipParent) {
             const border = clipParent.style.border;
@@ -362,6 +372,7 @@ export class Canvas2DElement {
         return result;
     }
 
+    // 更新变换矩阵
     private _updateTransform(){
         const style = this.style;
 
@@ -371,7 +382,7 @@ export class Canvas2DElement {
                 x = parseSize(style.left, this._parentWidth);
             } else if(style.right != null){
                 x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
-            } else {
+            } else { // x方向没有任何设置, 默认居中
                 x = parseSize('50%', this._parentWidth) - this.width / 2;
             }
         }
@@ -381,18 +392,19 @@ export class Canvas2DElement {
                 y = parseSize(style.top, this._parentHeight);
             } else if(style.bottom != null){
                 y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
-            } else {
+            } else {// y方向没有任何设置, 默认居中
                 y = parseSize('50%', this._parentHeight) - this.height / 2;
             }
         }
 
         this.transform
             .toUnit()
-            .translate(-this.origin[0], -this.origin[1])
-            .scale(style.scale)
-            .rotate(style.rotation)
-            .translate(x + this.origin[0], y + this.origin[1]);
+            .translate(-this.origin[0], -this.origin[1]) // 变换中心
+            .scale(style.scale) // 缩放
+            .rotate(style.rotation) // 旋转
+            .translate(x + this.origin[0], y + this.origin[1]); // 平移
 
+        // 父节点变换
         if(this.parent){
             const parent = this.parent;
             this.transform
@@ -401,6 +413,7 @@ export class Canvas2DElement {
         }
     }
 
+    // 计算父节点尺寸
     private _getBaseSize(key: 'width'| 'height'){
         let base: number = 0;
         if(this.parent) {
@@ -415,6 +428,7 @@ export class Canvas2DElement {
         return base;
     }
 
+    // 是否需要绘制
     private _isPaint(rootWidth: number, rootHeight: number){
         if(
             this.isVisible
