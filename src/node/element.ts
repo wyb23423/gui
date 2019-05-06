@@ -42,11 +42,16 @@ export class Canvas2DElement {
     private _parentWidth: number = 0;
     private _parentHeight: number = 0;
 
+
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
     private _dirty: boolean = true;
 
     constructor(public id: string | number, public isStatic: boolean = false) {
         this.id = createId(id);
+    }
+
+    get needUpdate() {
+        return this._needUpdate;
     }
 
     set needUpdate(needUpdate: boolean) {
@@ -247,7 +252,7 @@ export class Canvas2DElement {
     afterBuild() {
         this._ignore = false;
     }
-    // =============================================================
+
     /**
      * 计算节点宽高
      */
@@ -255,6 +260,8 @@ export class Canvas2DElement {
         this.width = parseSize(this.style.width, this._parentWidth);
         this.height = parseSize(this.style.height, this._parentHeight);
     }
+
+    // =============================================================
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
         const canvas = document.createElement('canvas');

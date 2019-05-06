@@ -12,6 +12,10 @@ export class Container extends Canvas2DElement {
 
     children: Canvas2DElement[] = [];
 
+    get needUpdate() {
+        return this._needUpdate;
+    }
+
     set needUpdate(needUpdate: boolean) {
         if(needUpdate !== this._needUpdate) {
             this._needUpdate = needUpdate;
@@ -80,7 +84,7 @@ export class Container extends Canvas2DElement {
 
             el.index = this.children.length;
             const index = findIndexByBinary(
-                mid => el.style.zIndex - this.children[mid].style.zIndex,
+                mid => el.style.zIndex - this.children[mid].style.zIndex || 1,
                 this.children.length
             );
             this.children.splice(index, 0, el);

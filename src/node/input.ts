@@ -5,7 +5,6 @@ import { Container } from "./container";
 import { TextBlock } from "./text";
 import { addHandler, removeHandler } from "../core/dom";
 import { IGuiEvent } from "../core/event";
-import { buildPath } from "../tool/paint";
 import { findIndexByBinary } from "../tool/util";
 import { Vector2 } from "../lib/vector";
 import { Canvas2DAnimation } from "../animation/animation";
@@ -42,12 +41,15 @@ export class Input extends Container {
     private _selectIndex: number = 0; // 光标前一个字的索引
     private _maxIndex: number = 0;
 
+    private _cursor: Container = null;
+    private _textEl: TextBlock = null;
+
     constructor(id: number | string) {
         super(id, false);
 
-        this.init(id);
+        this._initChildren(id); // 创建子节点以构成一个文本输入框
 
-        this._initDom();
+        this._initDom(); // 绑定相关dom事件
         this.event.on('mouseout', () => this.isIn = false);
         this.event.on('mouseover', () => this.isIn = true);
         this.event.on('click', this._click);
@@ -56,14 +58,16 @@ export class Input extends Container {
     }
 
     get text(){
-        return (<any>this.children[0]).children[1].text;
+        return this._textEl ? this._textEl.text : '';
     }
 
     /**
      * 设置文本样式
      */
     setTextStyle(key: string | TextStyle, value?: any) {
-        (<any>this.children[0]).children[1].setTextStyle(key, value);
+        if(this._textEl) {
+            this._textEl.setTextStyle(key, value);
+        }
 
         return this;
     }
@@ -85,14 +89,29 @@ export class Input extends Container {
         return this._contain(ctx, x, y) ? this : false;
     }
 
+    remove() {
+        console.warn('input不能移除任何子节点');
+
+        return this;
+    }
+
+    add() {
+        console.warn('input不能额外添加任何子节点');
+
+        return this;
+    }
+
     dispose() {
         super.dispose();
+        this._textEl = this._cursor = null;
 
         document.body.removeChild(this.dom);
         removeHandler(document, 'click', this._domClick);
     }
 
     beforeBuild() {
+        super.beforeBuild();
+
         Object.assign(this.children[0].style, {
             width: this.width - (this.style.border + this.padding) * 2,
             height: this.height - (this.style.border + this.padding) * 2,
@@ -100,24 +119,28 @@ export class Input extends Container {
             left: this.padding
         });
 
-        const textEl: TextBlock = (<any>this.children[0]).children[1];
-        Reflect.set(textEl, '_textWarp', 'no-warp');
-        Object.assign(textEl.style, {color: '', width: 0, height: 0, top: null });
+        const textEl: TextBlock = this._textEl;
+        if(textEl) {
+            this.setTextStyle('textWarp', 'no-warp');
+            Object.assign(textEl.style, {color: '', width: 0, height: 0, top: null });
+            if(this.isPassWord) {
+                textEl.text = textEl.text.replace(/[^]/g, '●');
+            }
 
-        if(this.isPassWord) {
-            textEl.text = textEl.text.replace(/[^]/g, '●');
+            if(this._cursor) {
+                textEl.needUpdate || this.setCursorPosition(textEl);
+                this._cursor.isVisible = this.isFocus;
+            }
         }
 
         this.style.border = Math.max(1, this.style.border);
         this.style.clip = true;
-
-        (<any>this.children[0]).children[0].isVisible = this.isFocus;
-        this.setCursor(textEl);
     }
 
     async build(ctx: CanvasRenderingContext2D) {
-        const textEl: TextBlock = (<any>this.children[0]).children[1];
+        const textEl: TextBlock = this._textEl;
 
+        // ============================获取焦点时样式
         let borderColor: string | CanvasGradient;
         let color: string | CanvasGradient;
         if(this.isFocus) {
@@ -126,14 +149,15 @@ export class Input extends Container {
                 this.style.borderColor = this.focusBorderColor;
             }
 
-            if(this.focusColor && textEl.text) {
+            if(this.focusColor && textEl && textEl.text) {
                 color = this.style.color;
                 this.style.color = this.focusColor;
             }
         }
 
+        // ==============================placeholder
         let notText: boolean = false;
-        if(!textEl.text) {
+        if(textEl && !textEl.text) {
             color = this.style.color;
             this.style.color = '#ccc';
             textEl.text = this.placeholder;
@@ -153,7 +177,8 @@ export class Input extends Container {
         }
     }
 
-    private setCursor(textEl: TextBlock) {
+    // 计算光标位置及文本向左移动的距离
+    private setCursorPosition(textEl: TextBlock) {
         let left = 0;
         if(this._selectIndex >= 0) {
             const text = textEl.textMap[Math.min(textEl.textMap.length - 1, this._selectIndex)];
@@ -176,30 +201,31 @@ export class Input extends Container {
             left += (width + 1 - textEl.width) / 2;
         }
 
-        box.children[0].left = left;
-        box.children[0].needUpdate = true;
+        this._cursor.left = left;
+        this._cursor.needUpdate = true;
     }
 
-    private init(id: number | string) {
-        const cursor = new Container(`__input__cursor__${id}`, true)
-                        .attr({
-                            background: '#000',
-                            width: 1
-                        });
-        const animation = new Canvas2DAnimation(1500, Infinity, 0, 'sinusoidalInOut')
-                    .addFrame(0.5, {opacity: 0})
-                    .addFrame(1, {opacity: 1});
-        animation.addElement(cursor).start();
+    private _initChildren(id: number | string) {
+        // ======================================光标
+        this._cursor = new Container(`__input__cursor__${id}`, true).attr({ background: '#000', width: 1 });
+        new Canvas2DAnimation(1500, Infinity, 0, 'sinusoidalInOut')
+            .addFrame(0.5, {opacity: 0})
+            .addFrame(1, {opacity: 1})
+            .addElement(this._cursor)
+            .start();
 
-        const text = new TextBlock(`__input__text__${id}`, false);
+        // ======================================文本
+        const text = this._textEl = new TextBlock(`__input__text__${id}`, false);
         const calcSize = text.calcSize;
         text.calcSize = async () => {
             await calcSize.call(text);
 
+            this.setCursorPosition(text);
+
             text.style.left = this.isCenter && text.width < text.getParentSize('width') ? null : 0;
         }
 
-        this.add(new Container(`__input__${id}`).add(text).add(cursor));
+        super.add(new Container(`__input__${id}`).add(text).add(this._cursor));
     }
 
     private _initDom() {
@@ -215,6 +241,7 @@ export class Input extends Container {
         addHandler(dom, 'focus', this._focus.bind(this));
         addHandler(dom, 'input', this._inputCall.bind(this));
         addHandler(dom, 'keydown', this._moveCursor.bind(this));
+        addHandler(dom, 'keyup', () => this._cursor && this._cursor.animation.start());
         addHandler(dom, 'compositionstart', () => this.isIME = true);
         addHandler(dom, 'compositionend', (e: any) => {
             this.isIME = false;
@@ -229,9 +256,7 @@ export class Input extends Container {
         if(!this.isIME) {
             this._selectIndex = (<HTMLInputElement>e.target).selectionStart - 1;
             const text = e.target.value.substr(0, this.maxLength);
-            if(text !== this.text) {
-                this.setTextStyle('text', text);
-            }
+            this.setTextStyle('text', text);
             this._maxIndex = text.length - 1;
         }
     }
@@ -242,32 +267,42 @@ export class Input extends Container {
     }
 
     private _moveCursor = (e: KeyboardEvent) => {
+        const fn = () => {
+            if(this._cursor) {
+                this._cursor.animation.stop();
+                this._cursor.attr('opacity', 1);
+            }
+            this.markDirty();
+        }
+
         if(e.keyCode === 37 && this._selectIndex > -1){
             this._selectIndex--;
-            this.markDirty();
+            fn();
         } else if(e.keyCode === 39 && this._selectIndex < this._maxIndex) {
             this._selectIndex++;
-            this.markDirty();
+            fn();
         }
     }
 
     private _click(e: IGuiEvent) {
-        const textMap = (<any>this.children[0]).children[1].textMap;
-        const point = new Vector2(e.x, e.y).transform(this.transform.invert());
-        const x = point.x - this.style.border - this.padding - this._move;
-        if(x <= 0) {
-            this._selectIndex = -1;
-        } else {
-            this._selectIndex = findIndexByBinary((mid: number) => {
-                const midMap = textMap[mid];
-                return x - midMap.x - midMap.width;
-            }, textMap.length);
+        if(this._textEl) {
+            const textMap = this._textEl.textMap;
+            const point = new Vector2(e.x, e.y).transform(this.transform.invert());
+            const x = point.x - this.style.border - this.padding - this._move;
+            if(x <= 0) {
+                this._selectIndex = -1;
+            } else {
+                this._selectIndex = findIndexByBinary((mid: number) => {
+                    const midMap = textMap[mid];
+                    return x - midMap.x - midMap.width;
+                }, textMap.length);
+            }
+
+            this.dom.focus();
+            this.dom.setSelectionRange(this._selectIndex + 1, this._selectIndex + 1);
+
+            this.markDirty();
         }
-
-        this.dom.focus();
-        this.dom.setSelectionRange(this._selectIndex + 1, this._selectIndex + 1);
-
-        this.markDirty();
     }
 
     private modifyFocus(isFocus: boolean) {

@@ -123,8 +123,6 @@ export class TextBlock extends Canvas2DElement {
             }
         }
 
-        this.markDirty();
-
         return this;
     }
 
