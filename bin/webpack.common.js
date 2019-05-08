@@ -2,24 +2,21 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-04-20 22:27:02
+ * @Last Modified time: 2019-05-08 13:58:52
 */
 
 'use strict';
 
 const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
     entry: './src/index.ts',
     output: {
         path: path.resolve(__dirname, '../dist'),
-        filename: '[name].bundle.js',
-        chunkFilename: '[name].[chunkhash:8].bundle.js'
+        filename: 'ws-gui.js',
+        library: 'wsGui',
+        libraryTarget: 'umd'
     },
-    plugins: [
-        new HtmlWebpackPlugin({title: 'gui'})
-    ],
     module: {
         rules: [
             {

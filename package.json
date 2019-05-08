@@ -1,15 +1,15 @@
 {
-  "name": "gui",
+  "name": "ws-gui",
   "version": "1.0.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --config bin/webpack.prod.js",
     "start": "webpack-dev-server --config bin/webpack.dev.js"
   },
+  "main": "dist/ws-gui.js",
   "license": "ISC",
   "devDependencies": {
     "clean-webpack-plugin": "^2.0.1",
-    "html-webpack-plugin": "^3.2.0",
     "ts-loader": "^5.3.3",
     "typescript": "^3.4.4",
     "uglifyjs-webpack-plugin": "^2.1.2",
@@ -21,6 +21,7 @@
   "dependencies": {
     "@types/node": "^11.13.6",
     "file-loader": "^3.0.1",
+    "html-webpack-plugin": "^3.2.0",
     "loader-utils": "^1.1.0",
     "url-loader": "^1.1.2"
   }
