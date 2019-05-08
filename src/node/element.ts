@@ -216,7 +216,7 @@ export class Canvas2DElement {
             this.origin[1] = this.style.origin[1] * this.height;
         }
 
-        this._updateTransform();
+        this.updateTransform();
 
         this.checkedPoint.clear();
     }
@@ -264,6 +264,46 @@ export class Canvas2DElement {
         this.height = parseSize(this.style.height, this._parentHeight);
     }
 
+    // 更新变换矩阵
+    updateTransform(){
+        const style = this.style;
+
+        let x: number = this.left, y: number = this.top;
+        if(x == null) {
+            if(style.left != null) {
+                x = parseSize(style.left, this._parentWidth);
+            } else if(style.right != null){
+                x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
+            } else { // x方向没有任何设置, 默认居中
+                x = parseSize('50%', this._parentWidth) - this.width / 2;
+            }
+        }
+
+        if(y == null) {
+            if(style.top != null) {
+                y = parseSize(style.top, this._parentHeight);
+            } else if(style.bottom != null){
+                y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
+            } else {// y方向没有任何设置, 默认居中
+                y = parseSize('50%', this._parentHeight) - this.height / 2;
+            }
+        }
+
+        this.transform
+            .toUnit()
+            .translate(-this.origin[0], -this.origin[1]) // 变换中心
+            .scale(style.scale) // 缩放
+            .rotate(style.rotation) // 旋转
+            .translate(x + this.origin[0], y + this.origin[1]); // 平移
+
+        // 父节点变换
+        if(this.parent){
+            const parent = this.parent;
+            this.transform
+                .translate(parent.style.border, parent.style.border)
+                .transform(parent.transform);
+        }
+    }
     // =============================================================
 
     /**
@@ -370,47 +410,6 @@ export class Canvas2DElement {
         this.checkedPoint.set(pk, result);
 
         return result;
-    }
-
-    // 更新变换矩阵
-    private _updateTransform(){
-        const style = this.style;
-
-        let x: number = this.left, y: number = this.top;
-        if(x == null) {
-            if(style.left != null) {
-                x = parseSize(style.left, this._parentWidth);
-            } else if(style.right != null){
-                x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
-            } else { // x方向没有任何设置, 默认居中
-                x = parseSize('50%', this._parentWidth) - this.width / 2;
-            }
-        }
-
-        if(y == null) {
-            if(style.top != null) {
-                y = parseSize(style.top, this._parentHeight);
-            } else if(style.bottom != null){
-                y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
-            } else {// y方向没有任何设置, 默认居中
-                y = parseSize('50%', this._parentHeight) - this.height / 2;
-            }
-        }
-
-        this.transform
-            .toUnit()
-            .translate(-this.origin[0], -this.origin[1]) // 变换中心
-            .scale(style.scale) // 缩放
-            .rotate(style.rotation) // 旋转
-            .translate(x + this.origin[0], y + this.origin[1]); // 平移
-
-        // 父节点变换
-        if(this.parent){
-            const parent = this.parent;
-            this.transform
-                .translate(parent.style.border, parent.style.border)
-                .transform(parent.transform);
-        }
     }
 
     // 计算父节点尺寸
