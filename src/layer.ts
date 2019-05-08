@@ -4,7 +4,6 @@
 import { Canvas2DElement } from "./node/element";
 import { createCanvas } from "./core/dom";
 import { findIndexByBinary } from "./tool/util";
-import { Container } from "./node/container";
 
 export class Layer {
     canvas?: HTMLCanvasElement;
@@ -31,7 +30,7 @@ export class Layer {
             el.left = el.top = null;
 
             const index = findIndexByBinary(
-                mid => el.style.zIndex - this.roots[mid].style.zIndex,
+                mid => el.style.zIndex - this.roots[mid].style.zIndex || 1,
                 this.roots.length
             );
             this.roots.splice(index, 0, el);
@@ -69,7 +68,9 @@ export class Layer {
         this.canvas = this.ctx = null;
     }
 
+    beforeRender() {}
     render(){
+        this.beforeRender();
         if(this.dirty){
             this.dirty = false;
 
@@ -78,6 +79,7 @@ export class Layer {
             this._render(0);
         }
     }
+    afterRender() {}
 
     getTarget(x: number, y: number){
         for(let i=this.roots.length - 1; i>=0; i--){
@@ -110,10 +112,13 @@ export class Layer {
         if(node){
             if(Date.now() - this._time > 15){
                 this.dirty = true;
+                this.afterRender();
             } else {
                 await node.draw(this.ctx);
                 this._render(i);
             }
+        } else {
+            this.afterRender();
         }
     }
 }

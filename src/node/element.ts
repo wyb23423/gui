@@ -381,7 +381,7 @@ export class Canvas2DElement {
         }
 
         // =======================================处于裁切路径外的点不在此节点上
-        const clipParent = this._getClipParent();
+        const clipParent = this.getParent((parent: Container) => parent.style.clip);
         if(clipParent) {
             const border = clipParent.style.border;
 
@@ -437,9 +437,13 @@ export class Canvas2DElement {
             && this.width >= 0
             && this.height >= 0
         ) {
-            const clipParent = this._getClipParent();
+            const clipParent = this.getParent((parent: Container) => parent.style.clip);
             if(clipParent){
                 return this.rect.intersect(clipParent.rect);
+            }
+
+            if((this.isStatic || this.getParent((parent: Container) => parent.isStatic)) && !this._cached) {
+                return true;
             }
 
             return this.rect.intersect(0, 0, rootWidth, rootHeight);
@@ -448,10 +452,10 @@ export class Canvas2DElement {
         return false;
     }
 
-    private _getClipParent(){
+    private getParent(filter: Function) {
         let parent = this.parent;
         while(parent){
-            if(parent.style.clip){
+            if(filter(parent)){
                 return parent;
             }
 

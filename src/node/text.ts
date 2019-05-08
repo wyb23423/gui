@@ -92,10 +92,10 @@ export class TextBlock extends Canvas2DElement {
             this.textMap.forEach(v => {
                 const x = this._adjustX(last, v);
                 const y = this._adjustY(last, v);
-                ctx.fillText(v.char, x, y);
                 if(this._strokeWidth) {
                     ctx.strokeText(v.char, x, y);
                 }
+                ctx.fillText(v.char, x, y);
             })
         }
 
@@ -156,6 +156,8 @@ export class TextBlock extends Canvas2DElement {
 
         // 静态文本只解析一次
         if(this.isStatic && this._cached) {
+            this.width = this._cached.width;
+            this.height = this._cached.height;
             return;
         }
 
@@ -252,7 +254,7 @@ export class TextBlock extends Canvas2DElement {
     private _setFont(style: string, index: number) {
         const old = this._font[index];
         if(style !== old) {
-            this._font[0] = style;
+            this._font[index] = style;
 
             this._modifyText = true;
             this.markDirty();

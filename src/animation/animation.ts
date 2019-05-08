@@ -178,15 +178,18 @@ export class Canvas2DAnimation {
 
     stop() {
         this._isStart = this._isPause = false;
-
         if(this._timer) {
             cancelAnimationFrame(this._timer);
         }
     }
 
+    notify() {
+        this._endCall.forEach(fn => fn());
+    }
+
     private _end() {
         this.stop();
-        this._endCall.forEach(fn => fn());
+        this.notify();
 
         if(--this.count > 0) {
             this.start();
@@ -251,7 +254,7 @@ export class Canvas2DAnimation {
                                 let prevValue = +parseFloat(prev);
 
                                 reg = new RegExp(`^[\\+-]?\\d+${s}$`);
-                                if(!reg.test(prev) && prevValue !== 0) {
+                                if(!reg.test(prev)) {
                                     this._warnOnce(k);
                                     prevValue = 0;
                                 }
