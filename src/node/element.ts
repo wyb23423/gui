@@ -23,8 +23,7 @@ export class Canvas2DElement {
 
     transform = new Matrix();
     rect?: BoundingRect;
-    event = new EventFul();
-    checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
+    events = new EventFul();
 
     isVisible: boolean = true; // 是否可见
     style: Style = new Style();
@@ -44,6 +43,7 @@ export class Canvas2DElement {
 
     private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
     private _dirty: boolean = true;
+    private _checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
 
     constructor(public id: string | number, public isStatic: boolean = false) {
         this.id = createId(id);
@@ -81,7 +81,7 @@ export class Canvas2DElement {
             this.parent.remove(this, false);
         }
 
-        this.event.dispose();
+        this.events.dispose();
         this.style.dispose();
         if(this._animation) {
             this._animation.el.delete(this);
@@ -89,12 +89,9 @@ export class Canvas2DElement {
 
         this._cached
         = this._animation
-        = this.rect
-        = this.transform
-        = this.style
         = this.layer
         = this.parent
-        = this.style = null;
+        = null;
     }
 
     async draw(ctx: CanvasRenderingContext2D){
@@ -104,22 +101,15 @@ export class Canvas2DElement {
 
         if(this._isPaint(ctx.canvas.width, ctx.canvas.height)) {
             ctx.save();
-            this.style.setAlpha(ctx);
-
-            if(this.isStatic){
-                if(!this._cached){
-                    this._cached = await this.buildCached(this.width, this.height, ctx);
-                }
-                const transform = this._cachedTransform
-                                    ? new Matrix().copy(this._cachedTransform).transform(this.transform)
-                                    : this.transform;
-                this.setTransform(ctx, transform);
-                ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
-            } else {
-                this._cachedTransform = null;
-                this.setTransform(ctx);
-                await this.build(ctx);
+            if(!(this._cached && this.isStatic)){
+                this._cached = await this.buildCached(this.width, this.height, ctx);
             }
+            const transform = this._cachedTransform
+                                ? new Matrix().copy(this._cachedTransform).transform(this.transform)
+                                : this.transform;
+            this.setTransform(ctx, transform);
+            this.style.setAlpha(ctx);
+            ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
             ctx.restore();
 
             this.afterBuild();
@@ -189,7 +179,7 @@ export class Canvas2DElement {
      * @param type 事件类型
      */
     notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
-        const skip = this.event.notify(type, event, guiEvent, this);
+        const skip = this.events.notify(type, event, guiEvent, this);
 
         if(!['change', 'input', 'foucs', 'blur'].includes(type) && !skip && this.parent) {
             this.parent.notifyEvent(type, event, guiEvent);
@@ -218,7 +208,7 @@ export class Canvas2DElement {
 
         this.updateTransform();
 
-        this.checkedPoint.clear();
+        this._checkedPoint.clear();
     }
 
     afterUpdate(){
@@ -235,21 +225,12 @@ export class Canvas2DElement {
         buildPath(ctx, 0, 0, width, height, this.style.borderRadius);
         await this.style.build(ctx, width, height);
 
-        if(border){
-            this.style.borderColor && ctx.stroke();
-
-            if(this.style.background || this.style.clip){
-                buildPath(
-                    ctx,
-                    border / 2, border / 2,
-                    width - border, height - border,
-                    this.style.borderRadius
-                );
-            }
-        }
-
         if(this.style.background){
             ctx.fill();
+        }
+
+        if(border && this.style.borderColor){
+            ctx.stroke();
         }
     }
     afterBuild() {
@@ -371,12 +352,12 @@ export class Canvas2DElement {
         }
 
         const pk: string = `${x}_${y}`;
-        if(this.checkedPoint.has(pk)) {
-            return this.checkedPoint.get(pk);
+        if(this._checkedPoint.has(pk)) {
+            return this._checkedPoint.get(pk);
         }
 
         if(this.rect && !this.rect.contain(x, y)) {
-            this.checkedPoint.set(pk, false);
+            this._checkedPoint.set(pk, false);
             return false;
         }
 
@@ -396,20 +377,24 @@ export class Canvas2DElement {
 
             if(!ctx.isPointInPath(x, y)) {
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
-                this.checkedPoint.set(pk, false);
+                this._checkedPoint.set(pk, false);
 
                 return false;
             }
         }
 
         ctx.setTransform(this.transform);
-        buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
+        this.buildPath(ctx);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         const result = ctx.isPointInPath(x, y);
-        this.checkedPoint.set(pk, result);
+        this._checkedPoint.set(pk, result);
 
         return result;
+    }
+
+    protected buildPath(ctx: CanvasRenderingContext2D) {
+        buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
     }
 
     // 计算父节点尺寸

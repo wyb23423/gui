@@ -83,7 +83,7 @@ export class Style {
     borderRadius?: number[];
     borderStyle: number[] = [];
 
-    opacity: number = 1; // 有点bug，没有实现类似css的效果, 待解决
+    opacity: number = 1; // bug已解决
 
     width: number | string = '100%';
     height: number | string = '100%';

@@ -77,32 +77,31 @@ const barrage = (() => {
     }
     function addDefault(el) {
         new Canvas2DAnimation(3000)
-            .addEndCall(() => {
-                el.isVisible = false;
-                el.markDirty();
-            })
-            .addElement(el);
+            .addEndCall(() => el.dispose())
+            .addElement(el)
+            .start();
 
         return el;
     }
     // 添加滚动动画
     function addScrollAnimation(el, speed) {
-        const TIME = 2500;
-        const anim1 = new Canvas2DAnimation(TIME / speed)
-                        .addFrame(0, {left: '100%'})
-                        .addFrame(1, {left: '0%'});
+        const calcSize = el.calcSize;
+        el.calcSize = async () => {
+            await calcSize.call(el);
 
-        let anim2 = null;
+            if(!el.animation) {
+                const left = el.style.left = el.getParentSize('width');
 
-        el.animation = anim1;
-        anim1.addEndCall(() => {
-            anim2 = anim2 || new Canvas2DAnimation((el.width + 10) * TIME / el.getParentSize('width') / speed)
-                                .addFrame(0, {left: 0})
-                                .addFrame(1, {left: -el.width - 10})
-                                .addEndCall(() => el.animation = anim1);
-            el.animation = anim2;
-            anim2.start();
-        });
+                const s = left + el.width + 10;
+                speed = left / 2500 / speed;
+                new Canvas2DAnimation(s / speed)
+                    .addFrame(0, {left: left})
+                    .addFrame(1, {left: -el.width - 10})
+                    .addElement(el)
+                    .addEndCall(() => el.dispose())
+                    .start();
+            }
+        }
 
         return el;
     }
@@ -112,12 +111,10 @@ const barrage = (() => {
         engine.render();
 
         const layer = engine.getLayer(0);
-
         let i=0;
         const load = () => {
             const el = createBarrage(list[i]);
             layer.add(el);
-            el.animation.start();
             if(++i < list.length) {
                 requestAnimationFrame(load);
             }
@@ -140,7 +137,7 @@ function randomInt(min, max){
 
 const root = document.getElementById('box');
 const list = [];
-for(let i=0; i<1000; i++) {
+for(let i=0; i<10000; i++) {
     list.push({
         content: ['测试数据' + i],
         size: 20,

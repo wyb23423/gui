@@ -33,7 +33,7 @@ export class Container extends Canvas2DElement {
         // 带边框的父元素的裁剪会影响子元素的鼠标拾取范围, 这里对其进行了简单处理
         // 只要clip或border可能会改变时就清除所有子元素的拾取缓存
         if(Reflect.has(key, 'clip') || Reflect.has(key, 'border')) {
-            this.children.forEach(v => v.checkedPoint.clear());
+            this.children.forEach(v => v.needUpdate = true);
         }
 
         super.attr(key, value);
@@ -47,7 +47,6 @@ export class Container extends Canvas2DElement {
         ctx.restore();
 
         ctx.save();
-        this.style.setAlpha(ctx);
         if(this.style.clip){
             ctx.clip();
         }
@@ -105,7 +104,10 @@ export class Container extends Canvas2DElement {
     }
 
     async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D){
-        this.setChildrenProps('isStatic', false);
+        if(this.isStatic) {
+            this.setChildrenProps('isStatic', false);
+        }
+
         const invert = this.transform.invert();
         const maxRect = (await this._getMaxRect()).transform(invert);
 

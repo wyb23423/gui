@@ -39,10 +39,10 @@ export class Input extends Container {
     private isIME: boolean = false; // 是否处于中文输入环境
     private _move: number = 0;
     private _selectIndex: number = 0; // 光标前一个字的索引
-    private _maxIndex: number = 0;
 
     private _cursor: Container = null;
     private _textEl: TextBlock = null;
+    private _text: string = '';
 
     constructor(id: number | string) {
         super(id, false);
@@ -50,15 +50,15 @@ export class Input extends Container {
         this._initChildren(id); // 创建子节点以构成一个文本输入框
 
         this._initDom(); // 绑定相关dom事件
-        this.event.on('mouseout', () => this.isIn = false);
-        this.event.on('mouseover', () => this.isIn = true);
-        this.event.on('click', this._click);
+        this.events.on('mouseout', () => this.isIn = false);
+        this.events.on('mouseover', () => this.isIn = true);
+        this.events.on('click', this._click);
 
         this.style.border = 1;
     }
 
     get text(){
-        return this._textEl ? this._textEl.text : '';
+        return this._text;
     }
 
     /**
@@ -255,10 +255,11 @@ export class Input extends Container {
     private _inputCall(e: any) {
         if(!this.isIME) {
             this._selectIndex = (<HTMLInputElement>e.target).selectionStart - 1;
-            const text = e.target.value.substr(0, this.maxLength);
+            const text = this._text = e.target.value.substr(0, this.maxLength);
             this.setTextStyle('text', text);
-            this._maxIndex = text.length - 1;
         }
+
+        this.notifyEvent('input', e, {target: this});
     }
 
     private _focus(e: FocusEvent) {
@@ -278,7 +279,7 @@ export class Input extends Container {
         if(e.keyCode === 37 && this._selectIndex > -1){
             this._selectIndex--;
             fn();
-        } else if(e.keyCode === 39 && this._selectIndex < this._maxIndex) {
+        } else if(e.keyCode === 39 && this._selectIndex < this._text.length - 1) {
             this._selectIndex++;
             fn();
         }

@@ -149,4 +149,19 @@ export const createId = (() => {
 
         return id;
     }
-})()
+})();
+
+export function Mixin(...source: Function[]) {
+    return (target: Function) => {
+        const proto = target.prototype;
+        source.forEach(s =>
+            Reflect.ownKeys(s.prototype).forEach(key => {
+                if (!(isNotMixinKey(<string>key) || Reflect.has(proto, key))) {
+                    const desc = Object.getOwnPropertyDescriptor(s.prototype, key);
+                    Object.defineProperty(proto, key, desc);
+                }
+            })
+        )
+    }
+}
+const isNotMixinKey = makeCheckExist('constructor prototype name');

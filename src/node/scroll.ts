@@ -23,11 +23,11 @@ export class Scroll extends Container {
         super(id, isStatic);
         super.add(new Stack(`__scroll__${id}`).attr('zIndex', -Number.MAX_VALUE));
 
-        this.event.on('mousedown', this._downCall);
-        this.event.on('mousemove', this._moveCall);
+        this.events.on('mousedown', this._downCall);
+        this.events.on('mousemove', this._moveCall);
 
-        this.event.on('touchstart', this._downCall);
-        this.event.on('touchmove', this._moveCall);
+        this.events.on('touchstart', this._downCall);
+        this.events.on('touchmove', this._moveCall);
 
         addHandler(document, 'mouseup', this._upCall);
         addHandler(document, 'touchend', this._upCall);
