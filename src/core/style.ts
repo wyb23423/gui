@@ -6,6 +6,7 @@
 import { isImg, makeCheckExist } from "../tool/util";
 import { getImg, disposeImg, DEFAULT_SRC } from "./resource";
 import { parseColor, stringify } from "../tool/color";
+import { devicePixelRatio } from '../config';
 
 /**
  * 将数据解析为有4个元素的数组

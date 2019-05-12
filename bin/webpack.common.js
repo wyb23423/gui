@@ -2,32 +2,56 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-05-08 13:58:52
+ * @Last Modified time: 2019-05-12 23:17:39
 */
 
 'use strict';
 
 const path = require('path');
+const distPath = path.resolve(__dirname, '../dist');
+const srcParh = path.resolve(__dirname, '../src');
 
 module.exports = {
     entry: './src/index.ts',
     output: {
-        path: path.resolve(__dirname, '../dist'),
+        path: distPath,
         filename: 'ws-gui.js',
         library: 'wsGui',
-        libraryTarget: 'umd'
+        libraryTarget: 'umd',
+        globalObject: 'this'
     },
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
                 use: 'ts-loader',
-                include: path.resolve(__dirname, '../src')
+                include: srcParh
             },
             {
                 test: /\.(png|svg|jpg|gif|jpeg)$/,
-                use: 'url-loader?limit=50000&name=assets/[hash:8].[name].[ext]'
-            }
+                use: 'url-loader?limit=50000&name=assets/[name].[hash:8].[ext]'
+            },
+            {
+                test: /\.worker\.js$/,
+                loader: 'worker-loader',
+                options: { inline: true },
+                include: srcParh
+            },
+            {
+                test: /\.worker\.tsx?$/,
+                use: [
+                    {
+                        loader: 'worker-loader',
+                        options: {
+                            publicPath: 'worker',
+                            inline: true,
+                            name: 'worker/[name].[hash:8].js',
+                        }
+                    },
+                    'ts-loader'
+                ],
+                include: srcParh
+            },
         ]
     },
     optimization: {
@@ -36,9 +60,6 @@ module.exports = {
         }
     },
     resolve: {
-        extensions: [".js", ".ts", ".tsx", ".json"],
-        alias: {
-            'src': path.resolve(__dirname, '../src/')
-        }
+        extensions: [".js", ".ts", ".tsx", ".json"]
     }
 };

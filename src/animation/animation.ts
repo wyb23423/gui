@@ -8,6 +8,7 @@ import { Canvas2DElement } from "../node/element";
 import { getEasing } from "./easing";
 import { Canvas2DImage } from "../node/image";
 
+// =========================================================
 interface AnimationAttr {
     [key: string]: string | number | number[];
 }
@@ -35,13 +36,38 @@ interface AnimationFrame {
     cellId?: number;
 }
 
+interface Msg {
+    animation: Canvas2DAnimation,
+    isEnd: boolean,
+    attrs: Map<string | number, AnimationAttr>
+}
+
+// ===============================================================
 const animationKey = [
     'width', 'height', 'scaleX', 'scaleY', 'rotation', 'left','right',
     'top', 'bottom', 'opacity', 'color', 'background', 'cellId'
 ];
 
+// =============================worker
+const worker:Worker = Reflect.construct(require('./play.worker'), []);
+worker.addEventListener('message', (event: MessageEvent) => {
+    const id: number = event.data.animation.id;
+    const animation = animations.get(id);
+    if(animation) {
+        animation.message(event.data);
+    }
+})
+worker.addEventListener('error', (e: any) => {
+    console.error(e);
+    worker.terminate();
+});
+// ================================
+
+const animations:Map<number, Canvas2DAnimation> = new Map(); // 所有动画对象
+// ========================================================================
 export class Canvas2DAnimation {
     el: Map<Canvas2DElement, AnimationAttr> = new Map();
+    id: number = createAnimationId();
 
     private _endCall: Set<Function> = new Set();
 
@@ -74,7 +100,9 @@ export class Canvas2DAnimation {
         public count: number = 1,
         public delay: number = 0,
         public easing: string = 'linear'
-    ) {}
+    ) {
+        animations.set(this.id, this);
+    }
 
     addFrame(frame: number | string, value: AnimationFrame, reWrite: boolean = true) {
         this.errKey.clear();
@@ -156,6 +184,8 @@ export class Canvas2DAnimation {
 
         this.el.forEach(v => v.animation = null);
         this.el.clear();
+
+        animations.delete(this.id);
     }
 
     start(now: number = Date.now()) {
@@ -187,6 +217,21 @@ export class Canvas2DAnimation {
         this._endCall.forEach(fn => fn());
     }
 
+    message(msg: Msg) {
+        Object.assign(this, msg.animation);
+
+        this.el.forEach((v, el) => {
+            const attr = msg.attrs.get(el.id);
+            if(attr) {
+                el.attr(attr);
+            }
+        });
+
+        if(msg.isEnd) {
+            this._end();
+        }
+    }
+
     private _end() {
         this.stop();
         this.notify();
@@ -201,82 +246,11 @@ export class Canvas2DAnimation {
             const now = Date.now();
 
             if(now >= this._startTime) {
-                const progress = Math.min(1, (now - this._startTime - this._pauseTime) / this.time);
-
-                if(!this._isPause) {
-                    for(const [e, v] of this.el.entries()) {
-                        if(e.animation === this) {
-                            e.attr(this._getAttr(progress, v))
-                        } else {
-                            this.el.delete(e);
-                        }
-                    }
-                } else {
-                    this._pauseTime += now - this._prevTime;
-                }
-                if(now - this._startTime - this._pauseTime > this.time) {
-                    return this._end();
-                }
-                this._prevTime = now;
+                worker.postMessage(this._createMsg(now));
             }
 
             this._timer = requestAnimationFrame(() => this._play());
         }
-    }
-
-    private _getAttr(progress: number, zeroFrame: AnimationAttr) {
-        const attr: AnimationFrame = {};
-
-        animationKey.forEach(k => {
-            const thisAttr: any = {...Reflect.get(this, k)};
-            thisAttr[0] = thisAttr[0] == null ? Reflect.get(zeroFrame, k) : thisAttr[0];
-
-            const frames = Object.keys(thisAttr).sort((a, b) => +a - +b);
-            const frame = frames.findIndex(v => +v >= progress);
-
-            let value = thisAttr[frames[frame]];
-            if(value != null) {
-                let prev = thisAttr[frames[frame - 1]];
-                const type1 = typeof value;
-                const type2 = typeof prev;
-                if(type1 === type2) {
-                    let rate = 1 - (+frames[frame] - progress) / (+frames[frame] - +frames[frame - 1]);
-                    rate = getEasing(this.easing)(rate);
-
-                    if(Array.isArray(value)) { // color、background
-                        value = value.map((v, i) => (v - prev[i]) * rate +  prev[i]);
-                    } else if(type1 === 'number'){
-                        value = (value - prev) * rate + prev;
-                    } else if(type1 === 'string') {
-                        let reg = /^([\+-]?\d+)(.*)$/;
-                        if(reg.test(value)) {
-                            value = value.replace(reg, (_: string, v: string, s: string) => {
-                                let prevValue = +parseFloat(prev);
-
-                                reg = new RegExp(`^[\\+-]?\\d+${s}$`);
-                                if(!reg.test(prev)) {
-                                    this._warnOnce(k);
-                                    prevValue = 0;
-                                }
-
-                                return (+v - prevValue) * rate + prevValue + s;
-                            });
-                        } else {
-                            value = 0;
-                        }
-                    }
-                } else if(type2 !== 'undefined'){
-                    this._warnOnce(k);
-                }
-
-                if(Array.isArray(value)) {
-                    value = stringify(value, 'rgba');
-                }
-                Reflect.set(attr, k, value);
-            }
-        });
-
-        return attr;
     }
 
     private _parseFrame(frame: number | string) {
@@ -293,10 +267,21 @@ export class Canvas2DAnimation {
         return Math.max(0, Math.min(res, 1));
     }
 
-    private _warnOnce(key: string) {
-        if(!this.errKey.has(key)) {
-            console.error(`对属性${key}的设置存在类型不一样的设置`);
-            this.errKey.add(key);
+    private _createMsg(now: number) {
+        const animation:any = {...this};
+        animation.el = new Map();
+        delete animation._endCall;
+        this.el.forEach((attr, el) => animation.el.set(el.id, attr));
+
+        return {
+            animation: animation,
+            now: now
         }
     }
+}
+
+// ================================================
+let id: number = 1000;
+function  createAnimationId() {
+    return id++;
 }

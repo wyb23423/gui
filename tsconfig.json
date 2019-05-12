@@ -16,7 +16,8 @@
     "lib": [
       "dom",
       "esnext",
-      "scripthost"
+      "scripthost",
+      "webworker"
     ]
   },
   "include": [

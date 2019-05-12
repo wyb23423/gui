@@ -1,8 +1,8 @@
-import { cached } from "../tool/util";
-
 /**
- * dom操作
+ * dom相关
  */
+import { cached } from "../tool/util";
+import { devicePixelRatio } from '../config';
 
 let id: number = 0;
 function createId(){

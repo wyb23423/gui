@@ -8,7 +8,8 @@ const barrage = (() => {
         Canvas2DImage,
         Engine,
         Stack,
-        TextBlock
+        TextBlock,
+        devicePixelRatio
     } = wsGui;
 
     const barrageId = (() =>{
@@ -76,10 +77,14 @@ const barrage = (() => {
         }
     }
     function addDefault(el) {
-        new Canvas2DAnimation(3000)
-            .addEndCall(() => el.dispose())
-            .addElement(el)
-            .start();
+        const anim = new Canvas2DAnimation(3000)
+            .addEndCall(() => {
+                anim.dispose();
+                el.dispose();
+            })
+            .addElement(el);
+
+        anim.start();
 
         return el;
     }
@@ -90,16 +95,17 @@ const barrage = (() => {
             await calcSize.call(el);
 
             if(!el.animation) {
-                const left = el.style.left = el.getParentSize('width');
-
-                const s = left + el.width + 10;
-                speed = left / 2500 / speed;
-                new Canvas2DAnimation(s / speed)
+                const left = el.style.left = el.getParentSize('width') / devicePixelRatio;
+                const anim = new Canvas2DAnimation(3000 / speed)
                     .addFrame(0, {left: left})
                     .addFrame(1, {left: -el.width - 10})
                     .addElement(el)
-                    .addEndCall(() => el.dispose())
-                    .start();
+                    .addEndCall(() => {
+                        anim.dispose();
+                        el.dispose()
+                    });
+
+                anim.start();
             }
         }
 
@@ -140,10 +146,10 @@ const list = [];
 for(let i=0; i<10000; i++) {
     list.push({
         content: ['测试数据' + i],
-        size: 20,
+        size: 16,
         speed: 1,
         color: `rgb(${randomInt(0, 255)}, ${randomInt(0, 255)}, ${randomInt(0, 255)})`,
-        y: Math.random() * 270,
+        y: Math.random() * (root.offsetHeight - 16 * wsGui.devicePixelRatio),
         type: Math.random() > 0.5 ? 'scroll' : 'static'
     });
 }

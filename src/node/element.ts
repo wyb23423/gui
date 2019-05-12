@@ -99,17 +99,20 @@ export class Canvas2DElement {
         await this.getBoundingRect();
         this.afterUpdate();
 
-        if(this._isPaint(ctx.canvas.width, ctx.canvas.height)) {
+        if(this._isPaint()) {
             ctx.save();
-            if(!(this._cached && this.isStatic)){
-                this._cached = await this.buildCached(this.width, this.height, ctx);
-            }
+
+            this._cached = this._cached || await this.buildCached(ctx);
             const transform = this._cachedTransform
                                 ? new Matrix().copy(this._cachedTransform).transform(this.transform)
                                 : this.transform;
             this.setTransform(ctx, transform);
             this.style.setAlpha(ctx);
             ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
+
+            if(!this.isStatic){
+                this._cached = null;
+            }
             ctx.restore();
 
             this.afterBuild();
@@ -233,6 +236,7 @@ export class Canvas2DElement {
             ctx.stroke();
         }
     }
+
     afterBuild() {
         this._ignore = false;
     }
@@ -293,10 +297,10 @@ export class Canvas2DElement {
      * @param height 缓存canvas的高
      * @param ctx
      */
-    async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D) {
+    async buildCached(ctx: CanvasRenderingContext2D) {
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = this.width;
+        canvas.height = this.height;
 
         const cachedCtx = canvas.getContext('2d');
         cachedCtx.save();
@@ -397,23 +401,8 @@ export class Canvas2DElement {
         buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
     }
 
-    // 计算父节点尺寸
-    private _getBaseSize(key: 'width'| 'height'){
-        let base: number = 0;
-        if(this.parent) {
-            base = this.parent[key];
-            if(this.parent.style.border) {
-                base -= this.parent.style.border * 2;
-            }
-        } else if(this.layer && this.layer.canvas){
-            base = this.layer.canvas[key];
-        }
-
-        return base;
-    }
-
     // 是否需要绘制
-    private _isPaint(rootWidth: number, rootHeight: number){
+    protected _isPaint(){
         if(
             this.isVisible
             && this.style.opacity
@@ -431,10 +420,27 @@ export class Canvas2DElement {
                 return true;
             }
 
-            return this.rect.intersect(0, 0, rootWidth, rootHeight);
+            const parent = this.layer ? this : this.getParent((p: Container) => p.layer);
+
+            return this.rect.intersect(0, 0, parent.getParentSize('width'),  parent.getParentSize('height'));
         }
 
         return false;
+    }
+
+    // 计算父节点尺寸
+    private _getBaseSize(key: 'width'| 'height'){
+        let base: number = 0;
+        if(this.parent) {
+            base = this.parent[key];
+            if(this.parent.style.border) {
+                base -= this.parent.style.border * 2;
+            }
+        } else if(this.layer && this.layer.canvas){
+            base = this.layer.canvas[key];
+        }
+
+        return base;
     }
 
     private getParent(filter: Function) {

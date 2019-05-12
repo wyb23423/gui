@@ -2,7 +2,7 @@ import { Layer } from "./layer";
 import { addHandler, getPosition } from "./core/dom";
 import { IGuiEvent, EventType } from "./core/event";
 import { Canvas2DElement } from "./node/element";
-
+import { devicePixelRatio } from './config';
 export class Engine {
     private _layers: Map<number, Layer> = new Map();
     private _timer?: number;

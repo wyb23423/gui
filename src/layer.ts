@@ -4,7 +4,7 @@
 import { Canvas2DElement } from "./node/element";
 import { createCanvas } from "./core/dom";
 import { findIndexByBinary } from "./tool/util";
-
+import { devicePixelRatio } from './config';
 export class Layer {
     canvas?: HTMLCanvasElement;
     dirty: boolean = true; // 是否需要绘制

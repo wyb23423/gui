@@ -7,7 +7,7 @@
 import { Canvas2DElement } from "./element";
 import { makeCheckExist } from "../tool/util";
 import { getLineHeight, getWidth } from "../core/text";
-
+import { devicePixelRatio } from '../config';
 // ==================================================
 
 const isFontStyle = makeCheckExist('fontStyle fontVariant fontWeight fontSize fontFamily');
@@ -59,7 +59,14 @@ export class TextBlock extends Canvas2DElement {
 
     set fontSize(style: number | string) {
         if(typeof style === 'number') {
-            style = style + 'px';
+            style = style * devicePixelRatio + 'px';
+        } else {
+            style = style.replace(
+                /^(\d+)(.*)$/,
+                (_: string, size: string, symbol: string) => {
+                    return +(size || 12) * devicePixelRatio + (symbol || 'px')
+                }
+            );
         }
 
         this._setFont(style, 3);

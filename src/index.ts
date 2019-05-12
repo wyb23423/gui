@@ -1,5 +1,4 @@
 
-
 export { Layer } from "./layer";
 export { Engine } from "./engine";
 export { Canvas2DElement } from "./node/element";
@@ -11,3 +10,4 @@ export { Stack } from "./node/stack";
 export { Scroll } from "./node/scroll";
 export { Path as PathElement } from "./node/path";
 export { Path } from './core/path';
+export { devicePixelRatio } from './config';

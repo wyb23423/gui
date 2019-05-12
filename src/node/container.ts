@@ -6,6 +6,7 @@ import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
 import { findIndexByBinary } from "../tool/util";
 import { Matrix } from "../lib/matrix";
+import { buildPath } from "../tool/paint";
 
 export class Container extends Canvas2DElement {
     readonly type: string = 'container';
@@ -44,6 +45,16 @@ export class Container extends Canvas2DElement {
     async build(ctx: CanvasRenderingContext2D){
         await super.build(ctx);
 
+        if(this.style.clip){
+            buildPath(
+                ctx,
+                this.style.border / 2,
+                this.style.border / 2,
+                this.width - this.style.border * 2,
+                this.height - this.style.border * 2,
+                this.style.borderRadius
+            )
+        }
         ctx.restore();
 
         ctx.save();
@@ -103,7 +114,7 @@ export class Container extends Canvas2DElement {
         this.children.length = 0;
     }
 
-    async buildCached(width: number, height: number, ctx: CanvasRenderingContext2D){
+    async buildCached(ctx: any){
         if(this.isStatic) {
             this.setChildrenProps('isStatic', false);
         }
@@ -111,15 +122,11 @@ export class Container extends Canvas2DElement {
         const invert = this.transform.invert();
         const maxRect = (await this._getMaxRect()).transform(invert);
 
-        const sx = ctx.canvas.width / maxRect.w;
-        const sy = ctx.canvas.height / maxRect.h;
-
         const canvas = document.createElement('canvas');
-        canvas.width = ctx.canvas.width;
-        canvas.height = ctx.canvas.height;
+        canvas.width = maxRect.w;
+        canvas.height = maxRect.h;
 
         const cachedCtx = canvas.getContext('2d');
-        cachedCtx.scale(sx, sy);
 
         const {a, b, c, d, e, f} = invert;
         cachedCtx.transform(a, b, c, d, e - maxRect.x, f - maxRect.y);
@@ -129,7 +136,10 @@ export class Container extends Canvas2DElement {
         await this.build(cachedCtx);
         cachedCtx.restore();
 
-        this._cachedTransform = new Matrix(1 / sx, 0, maxRect.x, 0, 1 / sy, maxRect.y);
+        this._cachedTransform = new Matrix(
+            1, 0, maxRect.x - this.style.border / 2 / this.style.scale[0],
+            0, 1, maxRect.y - this.style.border / 2 / this.style.scale[1]
+        );
 
         return canvas;
     }
