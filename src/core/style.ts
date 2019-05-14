@@ -5,7 +5,7 @@
  */
 import { isImg, makeCheckExist } from "../tool/util";
 import { getImg, disposeImg, DEFAULT_SRC } from "./resource";
-import { parseColor, stringify } from "../tool/color";
+import { parseColor, stringify, isEqual } from "../tool/color";
 import { devicePixelRatio } from '../config';
 
 /**
@@ -75,12 +75,12 @@ export interface Istyle {
 
 export class Style {
     background?: string | CanvasGradient;
-    color: string | CanvasGradient = '#000';
+    color: string | CanvasGradient = 'rgba(0, 0, 0, 1)';
 
     src?: string; // 图片路径
 
     border: number = 0;
-    borderColor: string | CanvasGradient = '#000';
+    borderColor: string | CanvasGradient = 'rgba(0, 0, 0, 1)';
     borderRadius?: number[];
     borderStyle: number[] = [];
 
@@ -122,8 +122,12 @@ export class Style {
     async build(ctx: CanvasRenderingContext2D, width: number, height: number){
         if(this.border){
             ctx.setLineDash(this.borderStyle);
-            ctx.strokeStyle = this.borderColor;
-            ctx.lineWidth = this.border;
+            if(!isEqual(ctx.strokeStyle, this.borderColor)) {
+                ctx.strokeStyle = this.borderColor;
+            }
+            if(ctx.lineWidth !== this.border) {
+                ctx.lineWidth = this.border;
+            }
         }
 
         if(this.background) {
@@ -136,8 +140,11 @@ export class Style {
                     a: width / img.width, d: height / img.height,
                     b: 0, c: 0, e: 0, f: 0
                 });
+                ctx.fillStyle = pattern;
             } else {
-                ctx.fillStyle = this.background;
+                if(!isEqual(ctx.fillStyle, this.background)) {
+                    ctx.fillStyle = this.background;
+                }
             }
         }
     }
@@ -147,8 +154,8 @@ export class Style {
      */
     setAlpha(ctx: CanvasRenderingContext2D){
         const alpha = Math.max(0, Math.min(1, this.opacity));
-        if(alpha < 1 && ctx.globalAlpha > 0) {
-            ctx.globalAlpha *= alpha;
+        if(ctx.globalAlpha !== alpha) {
+            ctx.globalAlpha = alpha;
         }
     }
 

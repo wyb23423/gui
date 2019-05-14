@@ -239,7 +239,7 @@ export const parseColor = cached((colorStr: string): number[] => {
     }
 
     return err(str);
-}, 50)
+}, 500)
 
 /**
  * @param arrColor like [12,33,44,0.4]
@@ -256,4 +256,18 @@ export function stringify(arrColor: number[], type: string) {
     }
 
     return type + '(' + colorStr + ')';
+}
+
+/**
+ * 判断两个颜色是否相等
+ */
+export function isEqual(a: any, b: any) {
+    if(typeof a === 'string' && typeof b === 'string') {
+        const arr1 = parseColor(a);
+        const arr2 = parseColor(b);
+
+        return arr1.every((v, i) => v === arr2[i]);
+    }
+
+    return a === b;
 }

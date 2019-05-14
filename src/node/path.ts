@@ -101,9 +101,7 @@ export class Path extends Canvas2DElement {
         canvas.height = this.getParentSize('height');
 
         const cachedCtx = canvas.getContext('2d');
-        cachedCtx.save();
         await this.build(cachedCtx);
-        cachedCtx.restore();
 
         return canvas;
     }
@@ -124,6 +122,8 @@ export class Path extends Canvas2DElement {
     }
 
     async calcSize(){
+        await super.calcSize();
+
         const rect = this._path.getBoundingRect();
         this.width = rect.w;
         this.height = rect.h;

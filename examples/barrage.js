@@ -77,7 +77,7 @@ const barrage = (() => {
         }
     }
     function addDefault(el) {
-        const anim = new Canvas2DAnimation(3000)
+        const anim = new Canvas2DAnimation(2000)
             .addEndCall(() => {
                 anim.dispose();
                 el.dispose();

@@ -13,8 +13,8 @@ export class Canvas2DImage extends Canvas2DElement {
     private _cellWidth?: number | string;
     private _cellHeight?: number | string;
 
-    constructor(id: string | number) {
-        super(id, false);
+    constructor(id: string | number, isStatic?: boolean) {
+        super(id, isStatic);
 
         this.style.width = this.style.height = 0; // 清除默认宽高设置
     }
@@ -59,7 +59,6 @@ export class Canvas2DImage extends Canvas2DElement {
     async update(){
         this.style.background = '';
         this.style.border = 0; // 图片没有边框，如果需要有，可使用Container的背景图
-        this.isStatic = false; // 图片本就有缓存，不需要再次缓存
 
         return super.update();
     }

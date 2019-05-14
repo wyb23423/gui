@@ -63,8 +63,8 @@ export class Stack extends Container {
 
         const [size, max] = await this._calcSize(sizeKey, positionKey, otherSizeKey);
 
-        this[sizeKey] = oldSize || size;
-        this[otherSizeKey] = this[otherSizeKey] || max;
+        this[sizeKey] = oldSize || size + this.style.border * 2;
+        this[otherSizeKey] = this[otherSizeKey] || max + this.style.border * 2;
     }
 
     private async _calcSize(

@@ -8,6 +8,7 @@ import { Canvas2DElement } from "./element";
 import { makeCheckExist } from "../tool/util";
 import { getLineHeight, getWidth } from "../core/text";
 import { devicePixelRatio } from '../config';
+import { isEqual } from "../tool/color";
 // ==================================================
 
 const isFontStyle = makeCheckExist('fontStyle fontVariant fontWeight fontSize fontFamily');
@@ -23,7 +24,7 @@ export class TextBlock extends Canvas2DElement {
     private _textAlign: TextAlign = 'left'; // 文本横向对齐
     private _verticalAlign: VerticalAlign = 'top';// 文本垂直对齐
 
-    private _strokeColor?: string | CanvasGradient = '#000'; // 描边颜色
+    private _strokeColor?: string | CanvasGradient = 'rgba(0, 0, 0, 1)'; // 描边颜色
     private _strokeWidth: number = 0; // 描边宽度
     private _lineHeight: number = 0; // 行高
     private _letterSpacing: number = 0; // 字间距
@@ -79,20 +80,24 @@ export class TextBlock extends Canvas2DElement {
     async build(ctx: CanvasRenderingContext2D) {
         const last = this.textMap[this.textMap.length - 1];
         if(last) {
-            await super.build(ctx);
-            ctx.clip();
+            if(this.style.background) {
+                await super.build(ctx);
+            }
 
-            ctx.textBaseline = 'top';
+            if(ctx.textBaseline !== 'top') {
+                ctx.textBaseline = 'top';
+            }
+
             const color = this.style.color || (this.parent ? this.parent.style.color : '');
-            if(color) {
+            if(color && !isEqual(ctx.fillStyle, color)) {
                 ctx.fillStyle = color;
             }
-            if(this._strokeWidth) {
+            if(this._strokeWidth && !isEqual(ctx.strokeStyle, this._strokeColor)) {
                 ctx.strokeStyle = this._strokeColor;
             }
 
             const font = this._font.filter(v => v != null && v !== '').join(' ');
-            if(font) {
+            if(font && ctx.font !== font) {
                 ctx.font = font;
             }
 
@@ -172,7 +177,7 @@ export class TextBlock extends Canvas2DElement {
             const font = this._font.filter(v => v != null && v !== '').join(' ');
             const lineHeight = (this._lineHeight || getLineHeight(font));
 
-            if(!this.style.width) {
+            if(!(this.style.width && this.width)) {
                 this.width = Infinity;
             }
 

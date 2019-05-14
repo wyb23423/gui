@@ -5,13 +5,15 @@
 import { Canvas2DElement } from "./element";
 import { Istyle } from "../core/style";
 import { findIndexByBinary } from "../tool/util";
-import { Matrix } from "../lib/matrix";
 import { buildPath } from "../tool/paint";
+import { Vector2 } from "../lib/vector";
 
 export class Container extends Canvas2DElement {
     readonly type: string = 'container';
 
     children: Canvas2DElement[] = [];
+
+    private _start = new Vector2();
 
     get needUpdate() {
         return this._needUpdate;
@@ -53,12 +55,13 @@ export class Container extends Canvas2DElement {
                 this.width - this.style.border * 2,
                 this.height - this.style.border * 2,
                 this.style.borderRadius
-            )
+            );
         }
-        ctx.restore();
 
-        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
         if(this.style.clip){
+            ctx.save();
             ctx.clip();
         }
 
@@ -114,7 +117,12 @@ export class Container extends Canvas2DElement {
         this.children.length = 0;
     }
 
-    async buildCached(ctx: any){
+    setTransform(ctx: CanvasRenderingContext2D){
+        super.setTransform(ctx);
+        ctx.translate(-this._start.x, -this._start.y);
+    }
+
+    async buildCached(){
         if(this.isStatic) {
             this.setChildrenProps('isStatic', false);
         }
@@ -122,26 +130,10 @@ export class Container extends Canvas2DElement {
         const invert = this.transform.invert();
         const maxRect = (await this._getMaxRect()).transform(invert);
 
-        const canvas = document.createElement('canvas');
-        canvas.width = maxRect.w;
-        canvas.height = maxRect.h;
+        this._start.x = -maxRect.x;
+        this._start.y = -maxRect.y;
 
-        const cachedCtx = canvas.getContext('2d');
-
-        const {a, b, c, d, e, f} = invert;
-        cachedCtx.transform(a, b, c, d, e - maxRect.x, f - maxRect.y);
-
-        cachedCtx.save();
-        this.setTransform(cachedCtx);
-        await this.build(cachedCtx);
-        cachedCtx.restore();
-
-        this._cachedTransform = new Matrix(
-            1, 0, maxRect.x - this.style.border / 2 / this.style.scale[0],
-            0, 1, maxRect.y - this.style.border / 2 / this.style.scale[1]
-        );
-
-        return canvas;
+        return super.buildCached(maxRect.w, maxRect.h, this._start);
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
@@ -170,9 +162,13 @@ export class Container extends Canvas2DElement {
             const _render = async (i: number) => {
                 const node = this.children[i++];
                 if(node){
+                    ctx.translate(this._start.x, this._start.y);
                     await node.draw(ctx);
                     _render(i);
                 } else {
+                    if(this.style.clip){
+                        ctx.restore();
+                    }
                     resolve();
                 }
             }

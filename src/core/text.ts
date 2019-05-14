@@ -12,11 +12,11 @@ export function getLineHeight(font: string){
     return getWidth('国', font);
 }
 
-function measureText(text: string, font: string) {
-    var ctx = getContext(null);
-    if(font) {
+const measureText = cached((text: string, font: string) => {
+    const ctx = getContext(null);
+    if(font && ctx.font !== font) {
         ctx.font = font;
     }
 
     return ctx.measureText(text).width;
-};
+})

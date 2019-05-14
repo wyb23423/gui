@@ -13,6 +13,7 @@ import { Canvas2DAnimation } from "../animation/animation";
 import { EventFul, IGuiEvent, EventType } from "../core/event";
 import { createId } from "../tool/util";
 import { buildPath } from "../tool/paint";
+import { Vector2 } from "../lib/vector";
 
 export class Canvas2DElement {
     readonly type: string = 'element';
@@ -35,7 +36,7 @@ export class Canvas2DElement {
 
     protected _needUpdate: boolean = true; // 是否需要执行update
     protected _cached?: HTMLCanvasElement; // 缓存节点
-    protected _cachedTransform?: Matrix; // 使用缓存绘制时的变换矩阵的逆矩阵
+    private _hadCalc: boolean = false;
 
     private _animation?: Canvas2DAnimation;
     private _parentWidth: number = 0;
@@ -100,20 +101,20 @@ export class Canvas2DElement {
         this.afterUpdate();
 
         if(this._isPaint()) {
-            ctx.save();
+            this.beforeBuild();
 
-            this._cached = this._cached || await this.buildCached(ctx);
-            const transform = this._cachedTransform
-                                ? new Matrix().copy(this._cachedTransform).transform(this.transform)
-                                : this.transform;
-            this.setTransform(ctx, transform);
+            if(!this.isStatic){
+                this._cached = null;
+            }
+            this._cached = this._cached || await this.buildCached();
+            this.setTransform(ctx);
             this.style.setAlpha(ctx);
             ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
 
             if(!this.isStatic){
                 this._cached = null;
             }
-            ctx.restore();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
 
             this.afterBuild();
         }
@@ -199,7 +200,10 @@ export class Canvas2DElement {
         this._parentHeight = this._getBaseSize('height');
 
         if(!(this.isStatic && this._cached)){
-            await this.calcSize();
+            if(!this._hadCalc) {
+                await this.calcSize();
+            }
+
             this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
             if(this.style.border < 0){
                 this.style.border = 0;
@@ -238,7 +242,7 @@ export class Canvas2DElement {
     }
 
     afterBuild() {
-        this._ignore = false;
+        this._ignore = this._hadCalc = false;
     }
 
     /**
@@ -247,6 +251,8 @@ export class Canvas2DElement {
     async calcSize(){
         this.width = parseSize(this.style.width, this._parentWidth);
         this.height = parseSize(this.style.height, this._parentHeight);
+
+        this._hadCalc = true;
     }
 
     // 更新变换矩阵
@@ -293,20 +299,19 @@ export class Canvas2DElement {
 
     /**
      * 缓存绘制
-     * @param width 缓存canvas的宽
-     * @param height 缓存canvas的高
-     * @param ctx
      */
-    async buildCached(ctx: CanvasRenderingContext2D) {
+    async buildCached(
+        width: number = this.width,
+        height: number = this.height,
+        start: Vector2 = new Vector2()
+    ) {
         const canvas = document.createElement('canvas');
-        canvas.width = this.width;
-        canvas.height = this.height;
+        canvas.width = width;
+        canvas.height = height;
 
         const cachedCtx = canvas.getContext('2d');
-        cachedCtx.save();
-        cachedCtx.translate(this.style.border / 2, this.style.border / 2);
+        cachedCtx.translate(this.style.border / 2 + start.x, this.style.border / 2 + start.y);
         await this.build(cachedCtx);
-        cachedCtx.restore();
 
         return canvas;
     }
@@ -325,13 +330,14 @@ export class Canvas2DElement {
     /**
      * 设置画布变换
      */
-    setTransform(ctx: CanvasRenderingContext2D, transform: Matrix = this.transform){
+    setTransform(ctx: CanvasRenderingContext2D){
+        const transform = new Matrix().copy(this.transform);
+        if(this.parent) {
+            transform.transform(this.parent.transform.invert());
+        }
+
         const {a, b, c, d, e, f} = transform;
-
         ctx.transform(a, b, c, d, e, f);
-        ctx.translate(this.style.border / 2, this.style.border / 2);
-
-        this.beforeBuild();
     }
 
     /**
@@ -440,7 +446,7 @@ export class Canvas2DElement {
             base = this.layer.canvas[key];
         }
 
-        return base;
+        return Math.max(0, base);
     }
 
     private getParent(filter: Function) {
