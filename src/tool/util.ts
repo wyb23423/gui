@@ -53,7 +53,7 @@ export function clone(obj: any){
 const imgReg = /\.(jpg|png|gif|jpeg)$/i;
 export function isImg(str: any){
     if(typeof str === 'string'){
-        return imgReg.test(str);
+        return imgReg.test(str) || str.startsWith('data:image/');
     }
 
     return false;

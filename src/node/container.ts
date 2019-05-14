@@ -7,6 +7,7 @@ import { Istyle } from "../core/style";
 import { findIndexByBinary } from "../tool/util";
 import { buildPath } from "../tool/paint";
 import { Vector2 } from "../lib/vector";
+import { BoundingRect } from "../core/bounding_rect";
 
 export class Container extends Canvas2DElement {
     readonly type: string = 'container';
@@ -69,39 +70,43 @@ export class Container extends Canvas2DElement {
     }
 
     remove(el: Canvas2DElement, dispose: boolean = true){
-        const i = this.children.findIndex(v => v === el);
-        if(i >= 0){
-            el.parent = null;
-            this.children.splice(i, 1);
+        if(el) {
+            const i = this.children.findIndex(v => v === el);
+            if(i >= 0){
+                el.parent = null;
+                this.children.splice(i, 1);
 
-            if(dispose) {
-                el.dispose();
+                if(dispose) {
+                    el.dispose();
+                }
+
+                this.markDirty();
             }
-
-            this.markDirty();
         }
 
         return this;
     }
 
     add(el: Canvas2DElement){
-        const parent = el.parent || el.layer;
+        if(el) {
+            const parent = el.parent || el.layer;
 
-        if(parent !== this) {
-            if(parent){
-                parent.remove(el, false);
+            if(parent !== this) {
+                if(parent){
+                    parent.remove(el, false);
+                }
+                el.parent = this;
+                el.left = el.top = null;
+                el.needUpdate = true;
+
+                el.index = this.children.length;
+                const index = findIndexByBinary(
+                    mid => el.style.zIndex - this.children[mid].style.zIndex || 1,
+                    this.children.length
+                );
+                this.children.splice(index, 0, el);
+                this.markDirty();
             }
-            el.parent = this;
-            el.left = el.top = null;
-            el.needUpdate = true;
-
-            el.index = this.children.length;
-            const index = findIndexByBinary(
-                mid => el.style.zIndex - this.children[mid].style.zIndex || 1,
-                this.children.length
-            );
-            this.children.splice(index, 0, el);
-            this.markDirty();
         }
 
         return this;
@@ -128,7 +133,10 @@ export class Container extends Canvas2DElement {
         }
 
         const invert = this.transform.invert();
-        const maxRect = (await this._getMaxRect()).transform(invert);
+        let maxRect = (await this._getMaxRect()).transform(invert);
+        if(this.style.clip) {
+            maxRect = new BoundingRect(0, 0, this.width, this.height);
+        }
 
         this._start.x = -maxRect.x;
         this._start.y = -maxRect.y;
@@ -175,6 +183,43 @@ export class Container extends Canvas2DElement {
 
             _render(0);
         });
+    }
+
+    async update() {
+        await super.update();
+
+        if(this.needUpdate) {
+            let isStaic = this.isStatic;
+            let el:Container = this;
+            if(!isStaic) {
+                el = this.getParent((parent: Container) => parent);
+                isStaic = !!el;
+            }
+
+            if(isStaic && el._cached) {
+                this._updateChildren();
+            }
+        }
+    }
+
+    private _updateChildren() {
+        this.children.forEach(v => {
+            v.beforeUpdate();
+
+            v.needUpdate = true;
+            v.getBoundingRect().then(() => {
+                v.afterUpdate();
+
+                if(v.isPaint()) {
+                    v.beforeBuild();
+                    v.afterBuild();
+                }
+
+                if(v instanceof Container) {
+                    v._updateChildren();
+                }
+            });
+        })
     }
 
     private async _getMaxRect() {

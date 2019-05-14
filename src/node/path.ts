@@ -106,14 +106,14 @@ export class Path extends Canvas2DElement {
         return canvas;
     }
 
-    async getBoundingRect() {
+    getBoundingRect() {
         if(this._needUpdate) {
-            await this.update();
+            this.update();
             this.rect.transform(this.transform);
             this._needUpdate = false;
         }
 
-        return this.rect;
+        return Promise.resolve(this.rect);
     };
 
     beforeUpdate() {
@@ -121,8 +121,8 @@ export class Path extends Canvas2DElement {
         this.style.border = this.style.border || 1;
     }
 
-    async calcSize(){
-        await super.calcSize();
+    calcSize(){
+        super.calcSize();
 
         const rect = this._path.getBoundingRect();
         this.width = rect.w;

@@ -2,7 +2,7 @@
 * @Author: name
 * @Date:   2018-10-21 16:45:12
  * @Last Modified by: mikey.zhaopeng
- * @Last Modified time: 2019-05-12 23:17:39
+ * @Last Modified time: 2019-05-14 14:24:38
 */
 
 'use strict';
@@ -16,7 +16,7 @@ module.exports = {
     output: {
         path: distPath,
         filename: 'ws-gui.js',
-        library: 'wsGui',
+        library: 'WsGui',
         libraryTarget: 'umd',
         globalObject: 'this'
     },

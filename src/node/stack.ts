@@ -48,7 +48,7 @@ export class Stack extends Container {
     }
 
     async calcSize() {
-        await super.calcSize();
+        super.calcSize();
 
         let sizeKey: 'height' | 'width' = 'height';
         let otherSizeKey: 'height' | 'width' = 'width'
@@ -76,11 +76,14 @@ export class Stack extends Container {
         let max: number = 0;
         const positionOtherKey: 'right' | 'bottom' = positionKey === 'left' ? 'right' : 'bottom';
 
-        for(const v of Array.from(this.children).sort((a, b) => a.index - b.index)){
+        const children = Array.from(this.children).sort((a, b) => a.index - b.index);
+        for(const v of children){
             size += parseSize(v.style[positionKey], 0);
             v[positionKey] = size;
 
-            await v.calcSize();
+            if(!(v.isStatic && v._cached)) {
+                await v.calcSize();
+            }
             size += v[sizeKey] + parseSize(v.style[positionOtherKey], 0);
             max = Math.max(max, v[otherSizeKey]);
 

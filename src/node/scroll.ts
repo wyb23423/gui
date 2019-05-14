@@ -6,21 +6,22 @@ import { Stack } from "./stack";
 import { Canvas2DElement } from "./element";
 import { IGuiEvent } from "../core/event";
 import { addHandler, removeHandler } from "../core/dom";
+import { devicePixelRatio as ratio } from "../config";
 
 export class Scroll extends Container {
     readonly type: string = 'scroll';
 
     children: Stack[] = [];
-    move: number = 0; // 移动距离, [-this._maxMove, 0]
+    move: number = 0; // 移动距离, [-this.maxMove, 0]
     more: number = 10; // 回弹效果
+    maxMove: number = 0;
 
     private _isVertical: boolean = true; // 是否是垂直排列
     private _isDown: boolean = false;
     private _downPoint: number = 0;
-    private _maxMove: number = 0;
 
-    constructor(id: number | string, isStatic?: boolean) {
-        super(id, isStatic);
+    constructor(id: number | string) {
+        super(id);
         super.add(new Stack(`__scroll__${id}`).attr('zIndex', -Number.MAX_VALUE));
 
         this.events.on('mousedown', this._downCall);
@@ -71,10 +72,30 @@ export class Scroll extends Container {
         this.style.clip = true;
 
         this.children.length = 1;
-        this.children[0].style[this._isVertical ? 'top' : 'left'] = this.move;
-        this.children[0].isVertical = this._isVertical;
-        this.children[0].isStatic = this.isStatic;
-        this.isStatic = false;
+        const stack = this.children[0];
+        stack[this._isVertical ? 'top' : 'left'] = this.move;
+
+        const sizeKey = this._isVertical ? 'height' : 'width';
+        const _this = this;
+        stack.buildCached = async function() {
+            if(this.isStatic) {
+                this.setChildrenProps('isStatic', false);
+            }
+
+            const invert = this.transform.invert();
+            const maxRect = (await this._getMaxRect()).transform(invert);
+            if(maxRect[sizeKey[0]] > _this[sizeKey]) {
+                maxRect[this._isVertical ? 'y' : 'x'] = -_this.move;
+                maxRect[sizeKey[0]] = _this[sizeKey];
+            }
+            this._start.x = -maxRect.x;
+            this._start.y = -maxRect.y;
+
+            const buildCached = Canvas2DElement.prototype.buildCached;
+            return buildCached.call(this, maxRect.w, maxRect.h, this._start);
+        }
+        stack.isVertical = this._isVertical;
+        stack.isStatic = this.isStatic = false;
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
@@ -97,17 +118,18 @@ export class Scroll extends Container {
             }
 
             const now = this._isVertical ? guiEvent.y : guiEvent.x;
-            const diff = now - this._downPoint;
-
+            const diff = (now - this._downPoint) / ratio;
             const sizeKey: 'height' | 'width' = this._isVertical ? 'height' : 'width';
-            this._maxMove = this.children[0][sizeKey] - this[sizeKey] + this.style.border * 2;
+            this.maxMove = this.children[0][sizeKey] - this[sizeKey] + this.style.border * 2;
 
-            if(Math.abs(diff) > 1e-3 && this._maxMove >= 1) {
+            if(Math.abs(diff) > 1e-3 && this.maxMove >= 1) {
                 this.move += diff;
-                this.move = Math.min(this.more, Math.max(this.move, -this._maxMove - this.more));
+                this.move = Math.min(this.more, Math.max(this.move, -this.maxMove - this.more));
 
-                this.needUpdate = true;
+                this.children[0].needUpdate = true;
                 this.markDirty();
+
+                this.notifyEvent('scroll', null, guiEvent);
             }
         }
     }
@@ -115,9 +137,9 @@ export class Scroll extends Container {
     private _upCall = () => {
         this._isDown = false;
 
-        if(this.move > 0 || this.move < -this._maxMove) {
-            this.move = Math.min(0, Math.max(this.move, -this._maxMove));
-            this.needUpdate = true;
+        if(this.move > 0 || this.move < -this.maxMove) {
+            this.move = Math.min(0, Math.max(this.move, -this.maxMove));
+            this.children[0].needUpdate = true;
             this.markDirty();
         }
     }

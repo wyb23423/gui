@@ -147,8 +147,8 @@ export class TextBlock extends Canvas2DElement {
         this.style.border = 0;
     }
 
-    async calcSize(){
-        await super.calcSize();
+    calcSize(){
+        super.calcSize();
 
         this._parseText();
 

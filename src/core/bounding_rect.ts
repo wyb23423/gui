@@ -101,7 +101,7 @@ export class BoundingRect {
         const by0 = y;
         const by1 = y + h;
 
-        return !(ax1 < bx0 || bx1 < ax0 || ay1 < by0 || by1 < ay0);
+        return ax1 >= bx0 || ax0 <= bx1 || ay1 >= by0 || by1 >= ay0;
     }
 
     clone() {

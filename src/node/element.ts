@@ -34,8 +34,9 @@ export class Canvas2DElement {
     left?: number; // 存在时覆盖style.left设置
     top?: number;// 存在时覆盖style.top设置
 
+    _cached?: HTMLCanvasElement; // 缓存节点
+
     protected _needUpdate: boolean = true; // 是否需要执行update
-    protected _cached?: HTMLCanvasElement; // 缓存节点
     private _hadCalc: boolean = false;
 
     private _animation?: Canvas2DAnimation;
@@ -100,7 +101,8 @@ export class Canvas2DElement {
         await this.getBoundingRect();
         this.afterUpdate();
 
-        if(this._isPaint()) {
+        const isPaint = this.isPaint();
+        if(isPaint) {
             this.beforeBuild();
 
             if(!this.isStatic){
@@ -118,6 +120,8 @@ export class Canvas2DElement {
 
             this.afterBuild();
         }
+
+        return isPaint;
     }
 
     /**
@@ -183,9 +187,10 @@ export class Canvas2DElement {
      * @param type 事件类型
      */
     notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
-        const skip = this.events.notify(type, event, guiEvent, this);
+        let skip = this.events.notify(type, event, guiEvent, this);
+        skip = skip || ['change', 'input', 'foucs', 'blur', 'scroll'].includes(type);
 
-        if(!['change', 'input', 'foucs', 'blur'].includes(type) && !skip && this.parent) {
+        if(this.parent && !skip) {
             this.parent.notifyEvent(type, event, guiEvent);
         }
     }
@@ -219,7 +224,7 @@ export class Canvas2DElement {
     }
 
     afterUpdate(){
-        this._dirty = false;
+        this._dirty = this._hadCalc = false;
     }
 
     beforeBuild() {}
@@ -242,13 +247,13 @@ export class Canvas2DElement {
     }
 
     afterBuild() {
-        this._ignore = this._hadCalc = false;
+        this._ignore = false;
     }
 
     /**
      * 计算节点宽高
      */
-    async calcSize(){
+    calcSize(){
         this.width = parseSize(this.style.width, this._parentWidth);
         this.height = parseSize(this.style.height, this._parentHeight);
 
@@ -353,6 +358,29 @@ export class Canvas2DElement {
         return 0;
     }
 
+    // 是否需要绘制
+    isPaint(){
+        if(
+            this.isVisible
+            && this.style.opacity
+            && this.style.scale[0]
+            && this.style.scale[1]
+            && this.width > 0
+            && this.height > 0
+        ) {
+            const clipParent = this.getParent((parent: Container) => parent.style.clip);
+            if(clipParent){
+                return this.rect.intersect(clipParent.rect);
+            }
+
+            const parent = this.layer ? this : this.getParent((p: Container) => p.layer);
+
+            return this.rect.intersect(0, 0, parent.getParentSize('width'),  parent.getParentSize('height'));
+        }
+
+        return false;
+    }
+
     /**
      * 检测一个点是否落在此节点上
      */
@@ -407,31 +435,15 @@ export class Canvas2DElement {
         buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
     }
 
-    // 是否需要绘制
-    protected _isPaint(){
-        if(
-            this.isVisible
-            && this.style.opacity
-            && this.style.scale[0]
-            && this.style.scale[1]
-            && this.width >= 0
-            && this.height >= 0
-        ) {
-            const clipParent = this.getParent((parent: Container) => parent.style.clip);
-            if(clipParent){
-                return this.rect.intersect(clipParent.rect);
+    protected getParent(filter: Function) {
+        let parent = this.parent;
+        while(parent){
+            if(filter(parent)){
+                return parent;
             }
 
-            if((this.isStatic || this.getParent((parent: Container) => parent.isStatic)) && !this._cached) {
-                return true;
-            }
-
-            const parent = this.layer ? this : this.getParent((p: Container) => p.layer);
-
-            return this.rect.intersect(0, 0, parent.getParentSize('width'),  parent.getParentSize('height'));
+            parent = parent.parent;
         }
-
-        return false;
     }
 
     // 计算父节点尺寸
@@ -447,16 +459,5 @@ export class Canvas2DElement {
         }
 
         return Math.max(0, base);
-    }
-
-    private getParent(filter: Function) {
-        let parent = this.parent;
-        while(parent){
-            if(filter(parent)){
-                return parent;
-            }
-
-            parent = parent.parent;
-        }
     }
 }

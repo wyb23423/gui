@@ -7,7 +7,7 @@ export class Engine {
     private _layers: Map<number, Layer> = new Map();
     private _timer?: number;
     private _preTarget?: Canvas2DElement;
-    private _isOut: boolean = true;
+    private _isOut: boolean = false;
 
     constructor(private _root: HTMLElement) {
         Object.assign(_root.style, {
@@ -25,6 +25,14 @@ export class Engine {
 
         addHandler(_root, 'mouseleave', () => this._isOut = true);
         addHandler(_root, 'mouseenter', () => this._isOut = false);
+    }
+
+    get width() {
+        return this._root.offsetWidth;
+    }
+
+    get height() {
+        return this._root.offsetHeight;
     }
 
     getLayer(z: number){

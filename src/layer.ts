@@ -24,39 +24,43 @@ export class Layer {
     }
 
     add(el: Canvas2DElement){
-        const parent = el.parent || el.layer;
-        if(parent !== this){
-            if(parent) {
-                parent.remove(el, false);
+        if(el) {
+            const parent = el.parent || el.layer;
+            if(parent !== this){
+                if(parent) {
+                    parent.remove(el, false);
+                }
+
+                el.layer = this;
+                el.needUpdate = true;
+                el.left = el.top = null;
+
+                const index = findIndexByBinary(
+                    mid => el.style.zIndex - this.roots[mid].style.zIndex || 1,
+                    this.roots.length
+                );
+                this.roots.splice(index, 0, el);
+
+                this.dirty = true;
             }
-
-            el.layer = this;
-            el.needUpdate = true;
-            el.left = el.top = null;
-
-            const index = findIndexByBinary(
-                mid => el.style.zIndex - this.roots[mid].style.zIndex || 1,
-                this.roots.length
-            );
-            this.roots.splice(index, 0, el);
-
-            this.dirty = true;
         }
 
         return this;
     }
 
     remove(el: Canvas2DElement, dispose: boolean = true){
-        const i: number = this.roots.findIndex(v => v === el);
-        if(i >= 0) {
-            el.layer = null;
-            this.roots.splice(i, 1);
+        if(el) {
+            const i: number = this.roots.findIndex(v => v === el);
+            if(i >= 0) {
+                el.layer = null;
+                this.roots.splice(i, 1);
 
-            if(dispose) {
-                el.dispose();
+                if(dispose) {
+                    el.dispose();
+                }
+
+                this.dirty = true;
             }
-
-            this.dirty = true;
         }
 
         return this;
@@ -124,13 +128,8 @@ export class Layer {
         const node = this.roots[i++];
 
         if(node){
-            // if(Date.now() - this._time > 15){
-            //     this.afterRender();
-            //     this.dirty = true;
-            // } else {
-                await node.draw(this.ctx);
-                this._render(i);
-            // }
+            await node.draw(this.ctx);
+            this._render(i);
         } else {
             this.afterRender();
         }

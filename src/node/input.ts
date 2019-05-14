@@ -217,8 +217,8 @@ export class Input extends Container {
         // ======================================文本
         const text = this._textEl = new TextBlock(`__input__text__${id}`, false);
         const calcSize = text.calcSize;
-        text.calcSize = async () => {
-            await calcSize.call(text);
+        text.calcSize = () => {
+            calcSize.call(text);
 
             this.setCursorPosition(text);
 

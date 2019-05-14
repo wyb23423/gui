@@ -4,7 +4,7 @@
 import { Canvas2DElement } from "../node/element";
 
 export type EventType = 'dbclick' | 'click' | 'mousedown' | 'mouseup' | 'mousemove'
-                            | 'mouseout' | 'mouseover'
+                            | 'mouseout' | 'mouseover' | 'scroll'
                             | 'touchstart' | 'touchmove' | 'touchend'
                             | 'change' | 'input' | 'focus' | 'blur';
 
