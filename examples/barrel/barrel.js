@@ -11,12 +11,17 @@ const Barrel = (() => {
 
     let engine = null;
     let stacks = [];
+    let isScroll = false;
 
     function loadImg(src) {
         src = `./assets/${src}`;
         const img = new Canvas2DImage(`${src}_${row}`).attr({src});
         img.events.on('click', function(){
-            window.open(this.style.src, 'block');
+            if(!isScroll) {
+                window.open(this.style.src, 'block');
+            }
+
+            isScroll = false;
         });
 
         return img.style.loadImg().then(dom => {
@@ -83,49 +88,45 @@ const Barrel = (() => {
         rowHeight = height;
         rowWidth = root.offsetWidth;
 
-        engine = new Engine(root);
-        engine.render();
+        engine = new Engine(root).addLayer(0);
+
+        const scroll = new Scroll('box');
+        scroll.events.on('touchend', () => isScroll = false);
+        scroll.events.on('scroll', _scroll);
+
+        engine.getLayer(0).add(scroll);
+
+        return scroll;
+    }
+    function _scroll() {
+        isScroll = true;
+
+        if(stacks.length && Math.abs(this.move) >= Math.abs(this.maxMove)) {
+            _load(this, 1);
+        }
+    }
+    function _load(scroll, count) {
+        let i=0;
+        while(i < count && stacks.length) {
+            scroll.add(stacks.shift());
+            i++;
+        }
     }
 
     function render(list, root, height = 200) {
-        srcList = list;
-        _init(root, height);
         root.style.pointerEvents = 'none';
+        srcList = list;
 
-        const layer = engine.addLayer(0).getLayer(0);
-        const scroll = new Scroll('box');
+        const scroll = _init(root, height);
         Promise.all(list.map(loadImg)).then(v => {
-            stacks = v;
-            stacks.push(layout(height));
-            stacks = stacks.filter(v => !!v);
+            v.push(layout(height));
+            stacks = v.filter(v => !!v);
 
-            function load(count) {
-                let i=0;
-                while(i < count && stacks.length) {
-                    scroll.add(stacks.shift());
-                    i++;
-                }
-            }
-
-            load(Math.ceil(root.offsetHeight / height));
+            _load(scroll, Math.ceil(root.offsetHeight / rowHeight));
             root.style.pointerEvents = 'all';
-
-            function scrollCall() {
-                if(!stacks.length) {
-                    return scroll.events.off('scroll', scrollCall)
-                }
-                if(Math.abs(this.move) >= Math.abs(this.maxMove)) {
-                    load(1);
-                }
-            }
-            scroll.events.on('scroll', scrollCall);
         });
-        layer.add(scroll);
-        const after = layer.afterRender;
-        layer.afterRender = () => {
-            after.call(layer);
-            console.log(Date.now() - layer._time);
-        }
+
+        engine.render();
 
         return scroll;
     }
@@ -138,7 +139,7 @@ const Barrel = (() => {
         stacks.forEach(v => v.dispose());
 
         engine && engine.dispose();
-        engine = null;
+        engine = target = null;
 
         row
         = srcList.length
