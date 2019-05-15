@@ -10,24 +10,23 @@ const Barrel = (() => {
     let srcList = [];
 
     let engine = null;
+    let stacks = [];
 
     function loadImg(src) {
         src = `./assets/${src}`;
-        const img = new Image();
-        img.src = src;
+        const img = new Canvas2DImage(`${src}_${row}`).attr({src});
+        img.events.on('click', function(){
+            window.open(this.style.src, 'block');
+        });
 
-        return new Promise(resolve=> {
-            img.onload = () => {
-                const ratio = img.width / img.height;
-                const stack = _render({
-                    target: src,
-                    width: rowHeight * ratio,
-                    height: rowHeight,
-                    ratio: ratio
-                });
-
-                resolve(stack);
-            };
+        return img.style.loadImg().then(dom => {
+            const ratio = dom.width / dom.height;
+            return _render({
+                target: img,
+                width: rowHeight * ratio,
+                height: rowHeight,
+                ratio: ratio
+            });
         });
     }
 
@@ -63,20 +62,14 @@ const Barrel = (() => {
         if(imgArr.length) {
             const stack = new Stack(row, true).attr({
                 height: height,
-                left: 0,
-                width: rowWidth
+                width: rowWidth,
+                left: 0
             });
             stack.isVertical = false;
 
-            imgArr.forEach((v, i) => {
-                const img = new Canvas2DImage(`${v.target.substr(0, 20)}_${i}_${row}`)
-                            .attr({
-                                height,
-                                src: v.target
-                            });
-                img.events.on('click', console.log);
-
-                stack.add(img);
+            imgArr.forEach(v => {
+                v.target.attr({height: height, width: height * v.ratio});
+                stack.add(v.target);
             })
 
             row++;
@@ -101,7 +94,8 @@ const Barrel = (() => {
 
         const layer = engine.addLayer(0).getLayer(0);
         const scroll = new Scroll('box');
-        Promise.all(list.map(loadImg)).then(stacks => {
+        Promise.all(list.map(loadImg)).then(v => {
+            stacks = v;
             stacks.push(layout(height));
             stacks = stacks.filter(v => !!v);
 
@@ -127,6 +121,11 @@ const Barrel = (() => {
             scroll.events.on('scroll', scrollCall);
         });
         layer.add(scroll);
+        const after = layer.afterRender;
+        layer.afterRender = () => {
+            after.call(layer);
+            console.log(Date.now() - layer._time);
+        }
 
         return scroll;
     }
@@ -135,8 +134,21 @@ const Barrel = (() => {
         return engine;
     }
 
+    function dispose() {
+        stacks.forEach(v => v.dispose());
+
+        engine && engine.dispose();
+        engine = null;
+
+        row
+        = srcList.length
+        = stacks.length
+        = width = 0;
+    }
+
     return {
         getEngine,
-        render
+        render,
+        dispose
     }
 })();

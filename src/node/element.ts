@@ -11,7 +11,7 @@ import { Style, Istyle } from "../core/style";
 import { parseSize } from "../core/dom";
 import { Canvas2DAnimation } from "../animation/animation";
 import { EventFul, IGuiEvent, EventType } from "../core/event";
-import { createId } from "../tool/util";
+import { createId, removeId } from "../tool/util";
 import { buildPath } from "../tool/paint";
 import { Vector2 } from "../lib/vector";
 
@@ -94,6 +94,8 @@ export class Canvas2DElement {
         = this.layer
         = this.parent
         = null;
+
+        removeId(this.id);
     }
 
     async draw(ctx: CanvasRenderingContext2D){

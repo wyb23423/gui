@@ -48,12 +48,18 @@ export class Scroll extends Container {
     }
 
     remove(el: Canvas2DElement, dispose: boolean = true){
+        if(!this.children.length) {
+            super.add(new Stack(`__scroll__0`).attr('zIndex', -Number.MAX_VALUE));
+        }
         this.children[0].remove(el, dispose);
 
         return this;
     }
 
     add(el: Canvas2DElement){
+        if(!this.children.length) {
+            super.add(new Stack(`__scroll__0`).attr('zIndex', -Number.MAX_VALUE));
+        }
         this.children[0].add(el);
 
         return this;
@@ -74,28 +80,10 @@ export class Scroll extends Container {
         this.children.length = 1;
         const stack = this.children[0];
         stack[this._isVertical ? 'top' : 'left'] = this.move;
-
-        const sizeKey = this._isVertical ? 'height' : 'width';
-        const _this = this;
-        stack.buildCached = async function() {
-            if(this.isStatic) {
-                this.setChildrenProps('isStatic', false);
-            }
-
-            const invert = this.transform.invert();
-            const maxRect = (await this._getMaxRect()).transform(invert);
-            if(maxRect[sizeKey[0]] > _this[sizeKey]) {
-                maxRect[this._isVertical ? 'y' : 'x'] = -_this.move;
-                maxRect[sizeKey[0]] = _this[sizeKey];
-            }
-            this._start.x = -maxRect.x;
-            this._start.y = -maxRect.y;
-
-            const buildCached = Canvas2DElement.prototype.buildCached;
-            return buildCached.call(this, maxRect.w, maxRect.h, this._start);
-        }
         stack.isVertical = this._isVertical;
         stack.isStatic = this.isStatic = false;
+
+        this._setBuild(stack);
     }
 
     getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
@@ -130,6 +118,26 @@ export class Scroll extends Container {
                 this.markDirty();
 
                 this.notifyEvent('scroll', null, guiEvent);
+            }
+        }
+    }
+
+    private _setBuild(stack: Stack) {
+        if(!stack.hasOwnProperty('buildCached')) {
+            const sizeKey = this._isVertical ? 'height' : 'width';
+            const _this = this;
+            stack.buildCached = async function() {
+                const invert = this.transform.invert();
+                const maxRect = (await this._getMaxRect()).transform(invert);
+                if(maxRect[sizeKey[0]] > _this[sizeKey]) {
+                    maxRect[this._isVertical ? 'y' : 'x'] = -_this.move;
+                    maxRect[sizeKey[0]] = _this[sizeKey];
+                }
+                this._start.x = -maxRect.x;
+                this._start.y = -maxRect.y;
+
+                const buildCached = Canvas2DElement.prototype.buildCached;
+                return buildCached.call(this, maxRect.w, maxRect.h, this._start);
             }
         }
     }

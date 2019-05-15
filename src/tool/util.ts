@@ -136,13 +136,13 @@ export const hump2line = cached((str: string, line: string = '-') => {
     return str.replace(/[A-Z]/g, (w: string) => line + w.toLowerCase());
 })
 
+const ids: Set<string | number> = new Set();
 export const createId = (() => {
-    const ids: Set<string | number> = new Set();
     let num: number = 0;
 
     return function(id: string | number) {
         if(ids.has(id)) {
-            id = `${Date.now().toString(16)}${num.toString(16).padStart(6, '0')}`
+            id = `${Date.now().toString(16)}${num.toString(16).padStart(6, '0')}`;
             num++;
         }
         ids.add(id);
@@ -150,6 +150,9 @@ export const createId = (() => {
         return id;
     }
 })();
+export function removeId(id: string | number) {
+    ids.delete(id);
+}
 
 export function Mixin(...source: Function[]) {
     return (target: Function) => {

@@ -1,8 +1,15 @@
 import { Layer } from "./layer";
-import { addHandler, getPosition } from "./core/dom";
+import { addHandler, getPosition, removeHandler } from "./core/dom";
 import { IGuiEvent, EventType } from "./core/event";
 import { Canvas2DElement } from "./node/element";
 import { devicePixelRatio } from './config';
+
+// =============================================
+const eventNames: EventType[] = [
+    'dbclick', 'click', 'mousedown', 'mouseup', 'mousemove',
+    'touchstart', 'touchmove', 'touchend'
+];
+// ===============================================
 export class Engine {
     private _layers: Map<number, Layer> = new Map();
     private _timer?: number;
@@ -14,25 +21,27 @@ export class Engine {
             '-webkit-tap-highlight-color': 'transparent',
             '-webkit-user-select': 'none',
             'user-select': 'none',
-            '-webkit-touch-callout': 'none'
+            '-webkit-touch-callout': 'none',
+            'touch-action': 'none'
         })
         _root.innerHTML = '';
         if(!['relative', 'absolute', 'fixed'].includes(_root.style.position)){
             _root.style.position = 'relative';
         }
 
-        this._initEvent();
-
-        addHandler(_root, 'mouseleave', () => this._isOut = true);
-        addHandler(_root, 'mouseenter', () => this._isOut = false);
+        eventNames.forEach((type : EventType) => {
+            addHandler(this._root, type, this._eventHandler);
+        })
+        addHandler(_root, 'mouseleave', this._leave);
+        addHandler(_root, 'mouseenter', this._enter);
     }
 
     get width() {
-        return this._root.offsetWidth;
+        return this._root ? this._root.offsetWidth : 0;
     }
 
     get height() {
-        return this._root.offsetHeight;
+        return this._root ? this._root.offsetHeight : 0;
     }
 
     getLayer(z: number){
@@ -87,8 +96,15 @@ export class Engine {
         if(this._timer) {
             cancelAnimationFrame(this._timer);
         }
-
         this._layers.forEach(this.removeLayer, this);
+
+        if(this._root) {
+            eventNames.forEach((type : EventType) => {
+                removeHandler(this._root, type, this._eventHandler);
+            })
+            removeHandler(this._root, 'mouseleave', this._leave);
+            removeHandler(this._root, 'mouseenter', this._enter);
+        }
         this._root = this._preTarget = null;
     }
 
@@ -110,33 +126,34 @@ export class Engine {
         return this;
     }
 
-    private _initEvent() {
-        const eventNames: EventType[] = [
-            'dbclick', 'click', 'mousedown', 'mouseup', 'mousemove',
-            'touchstart', 'touchmove', 'touchend'
-        ];
+    private _getTarget(x: number, y: number) {
+        const layers = Array.from(this._layers.keys()).sort((a, b) => b - a);
+        for(const layer of layers) {
+            const target = this._layers.get(layer).getTarget(x, y);
 
-        eventNames.forEach((type : EventType) => {
-            addHandler(this._root, type, (e: Event) => {
-                if(!this._isOut) {
-                    e = e || window.event;
-                    let {x, y} = getPosition(this._root, <MouseEvent>e);
-                    x *= devicePixelRatio;
-                    y *= devicePixelRatio;
-                    const target = this._getTarget(x, y);
-                    const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
-                    if(type === 'mousemove' || type === 'touchmove') {
-                        this._moveHandler(guiEvent, e, type);
-                    }
-
-                    if(target && type !== 'mousemove' && type !== 'touchmove') {
-                        target.notifyEvent(type, e, guiEvent);
-                    }
-                }
-            });
-        })
+            if(target) {
+                return target;
+            }
+        }
     }
 
+    private _eventHandler = (e: Event) =>{
+        if(!this._isOut) {
+            e = e || window.event;
+            let {x, y} = getPosition(this._root, <MouseEvent>e);
+            x *= devicePixelRatio;
+            y *= devicePixelRatio;
+            const target = this._getTarget(x, y);
+            const guiEvent:IGuiEvent = {x, y, target, cancelBubble: false};
+            if(e.type === 'mousemove' || e.type === 'touchmove') {
+                this._moveHandler(guiEvent, e, e.type);
+            }
+
+            if(target && e.type !== 'mousemove' && e.type !== 'touchmove') {
+                target.notifyEvent(<EventType>e.type, e, guiEvent);
+            }
+        }
+    }
     private _moveHandler(guiEvent: IGuiEvent, e: Event, type: 'mousemove' | 'touchmove') {
         if(this._preTarget === guiEvent.target) {
             guiEvent.target && guiEvent.target.notifyEvent(type, e, guiEvent);
@@ -150,16 +167,7 @@ export class Engine {
         }
 
         this._preTarget = guiEvent.target;
-    }
-
-    private _getTarget(x: number, y: number) {
-        const layers = Array.from(this._layers.keys()).sort((a, b) => b - a);
-        for(const layer of layers) {
-            const target = this._layers.get(layer).getTarget(x, y);
-
-            if(target) {
-                return target;
-            }
-        }
-    }
+    };
+    private _leave = () => this._isOut = true;
+    private _enter = () => this._isOut = false;
 }

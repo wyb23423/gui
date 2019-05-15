@@ -31,14 +31,13 @@ export function getImg(path: string, isFirst: boolean = true): Promise<HTMLImage
     return new Promise(resolve => {
         img.onload = () => {
             res.set(path, {image: img, count: 1});
-
             resolve(img);
         }
 
         img.onerror = () => {
             img.src = DEFAULT_SRC;
         }
-    })
+    });
 }
 
 /**
@@ -50,6 +49,7 @@ export function disposeImg(path: string){
     if(data){
         data.count--;
         if(data.count <= 0 && path !== DEFAULT_SRC){
+            data.image.onload = null;
             data.image.src = '';
             res.delete(path);
         }

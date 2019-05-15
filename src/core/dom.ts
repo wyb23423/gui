@@ -83,9 +83,9 @@ export function getPosition(el: HTMLElement, e: any) {
 export function addHandler(element: any, type: string, handler: Function) {
     if(element.addEventListener){
         element.addEventListener(type, handler, false);
-    }else if(element.attachEvent){
+    } else if (element.attachEvent){
         element.attachEvent('on' + type, handler);
-    }else{
+    } else {
         element['on' + type] = handler;
     }
 }
@@ -93,9 +93,9 @@ export function addHandler(element: any, type: string, handler: Function) {
 export function removeHandler(element: any, type: string, handler: Function){
     if(element.removeEventListener){
         element.removeEventListener(type, handler, false);
-    }else if(element.detachEvent){
+    } else if (element.detachEvent){
         element.detachEvent('on' + type, handler);
-    }else{
+    } else {
         element['on' + type] = null;
     }
 }

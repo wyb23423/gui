@@ -5,6 +5,7 @@ import { Canvas2DElement } from "./node/element";
 import { createCanvas } from "./core/dom";
 import { findIndexByBinary } from "./tool/util";
 import { devicePixelRatio } from './config';
+import { Container } from "./node/container";
 export class Layer {
     canvas?: HTMLCanvasElement;
     dirty: boolean = true; // 是否需要绘制
@@ -111,7 +112,18 @@ export class Layer {
         this._resize(width, height, this.canvas);
         this._resize(width, height, this._drawCanvas);
 
-        this.roots.forEach(v => v.needUpdate = true);
+        this.roots.forEach(v => {
+            this._clearCached(v);
+            v.needUpdate = true;
+        });
+    }
+
+    private _clearCached(node: Canvas2DElement) {
+        node._cached = null;
+
+        if(node instanceof Container) {
+            node.children.forEach(this._clearCached, this);
+        }
     }
 
     private _resize(width: number, height: number, canvas: HTMLCanvasElement) {

@@ -39,11 +39,13 @@
             return list;
         }
 
-        window.addEventListener('load', () => {
-            const scroll = Barrel.render(getSrcList(), document.getElementById('box'));
+        const root = document.getElementById('box');
+        Barrel.render(getSrcList(), root);
 
-            console.log(scroll);
-        });
+        // window.addEventListener('resize', () => {
+        //     Barrel.dispose();
+        //     Barrel.render(getSrcList(), root);
+        // }, false);
     </script>
 </body>
 </html>
