@@ -128,10 +128,12 @@ export class Container extends Canvas2DElement {
     }
 
     async buildCached(){
-        const invert = this.transform.invert();
-        let maxRect = (await this._getMaxRect()).transform(invert);
+        let maxRect = null;
         if(this.style.clip) {
             maxRect = new BoundingRect(0, 0, this.width, this.height);
+        } else {
+            const invert = this.transform.invert();
+            maxRect = (await this._getMaxRect()).transform(invert);
         }
 
         this._start.x = -maxRect.x;
