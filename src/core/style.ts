@@ -4,7 +4,7 @@
  * 样式
  */
 import { isImg, makeCheckExist } from "../tool/util";
-import { getImg, disposeImg, DEFAULT_SRC } from "./resource";
+import { getImg, disposeImg } from "./resource";
 import { parseColor, stringify, isEqual } from "../tool/color";
 import { devicePixelRatio } from '../config';
 
@@ -208,7 +208,7 @@ export class Style {
         if(!isImg(src)) {
             console.warn(`${src}不是有效的图片路径`);
 
-            src = DEFAULT_SRC;
+            return Promise.resolve(new Image());
         }
 
         const isFirst = !this._res.has(src);

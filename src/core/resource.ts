@@ -9,8 +9,6 @@ interface ResData {
 
 const res: Map<string, ResData> = new Map();
 
-export const DEFAULT_SRC = require('../assets/1.jpg'); // 默认图片
-
 /**
  * 获取图片
  * @param isFirst 是否是节点第一次请求图片
@@ -34,8 +32,8 @@ export function getImg(path: string, isFirst: boolean = true): Promise<HTMLImage
             resolve(img);
         }
 
-        img.onerror = () => {
-            img.src = DEFAULT_SRC;
+        img.onerror = (e) => {
+            console.error(e);
         }
     });
 }
@@ -48,12 +46,10 @@ export function disposeImg(path: string){
 
     if(data){
         data.count--;
-        if(data.count <= 0 && path !== DEFAULT_SRC){
+        if(data.count <= 0){
             data.image.onload = null;
             data.image.src = '';
             res.delete(path);
         }
     }
 }
-
-getImg(DEFAULT_SRC);
