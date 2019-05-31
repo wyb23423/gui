@@ -15,8 +15,8 @@ const res: Map<string, ResData> = new Map();
  */
 export function getImg(path: string, isFirst: boolean = true): Promise<HTMLImageElement> {
     const data = res.get(path);
-    if(data){
-        if(isFirst){
+    if (data) {
+        if (isFirst) {
             data.count++;
         }
 
@@ -28,7 +28,7 @@ export function getImg(path: string, isFirst: boolean = true): Promise<HTMLImage
 
     return new Promise(resolve => {
         img.onload = () => {
-            res.set(path, {image: img, count: 1});
+            res.set(path, { image: img, count: 1 });
             resolve(img);
         }
 
@@ -41,14 +41,13 @@ export function getImg(path: string, isFirst: boolean = true): Promise<HTMLImage
 /**
  * 释放图片
  */
-export function disposeImg(path: string){
+export function disposeImg(path: string) {
     const data = res.get(path);
 
-    if(data){
+    if (data) {
         data.count--;
-        if(data.count <= 0){
+        if (data.count <= 0) {
             data.image.onload = null;
-            data.image.src = '';
             res.delete(path);
         }
     }
