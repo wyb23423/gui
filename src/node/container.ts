@@ -1,219 +1,155 @@
 /**
  * 容器元素基类
  */
+import Canvas2DElement from './element';
+import { findIndexByBinary } from '../tool/util';
+import { buildPath } from '../tool/paint';
 
-import { Canvas2DElement } from "./element";
-import { Istyle } from "../core/style";
-import { findIndexByBinary } from "../tool/util";
-import { buildPath } from "../tool/paint";
-import { Vector2 } from "../lib/vector";
-import { BoundingRect } from "../core/bounding_rect";
+export default class Canvas2DContainer extends Canvas2DElement {
+  public readonly type: string = 'container';
 
-export class Container extends Canvas2DElement {
-    readonly type: string = 'container';
+  public children: Canvas2DElement[] = [];
 
-    children: Canvas2DElement[] = [];
+  public get needUpdate() {
+    return this._needUpdate;
+  }
 
-    private _start = new Vector2();
-
-    get needUpdate() {
-        return this._needUpdate;
+  public set needUpdate(needUpdate: boolean) {
+    if (needUpdate !== this._needUpdate) {
+      this._needUpdate = needUpdate;
+      if (needUpdate) {
+        this.children.forEach((v) => (v.needUpdate = true));
+        this.updateStackParent();
+      }
     }
+  }
 
-    set needUpdate(needUpdate: boolean) {
-        if(needUpdate !== this._needUpdate) {
-            this._needUpdate = needUpdate;
-            if(needUpdate && !(this.isStatic && this._cached)) {
-                this.children.forEach(v => v.needUpdate = true);
-            }
-        }
-    }
+  public remove(el: Canvas2DElement, dispose: boolean = true) {
+    if (el) {
+      const i = this.children.findIndex((v) => v === el);
+      if (i >= 0) {
+        el.parent = undefined;
+        this.children.splice(i, 1);
 
-    attr(key: string | Istyle, value?: any){
-        if(typeof key === 'string') {
-            key = {[key]: value};
-        }
-
-        // 带边框的父元素的裁剪会影响子元素的鼠标拾取范围, 这里对其进行了简单处理
-        // 只要clip或border可能会改变时就清除所有子元素的拾取缓存
-        if(Reflect.has(key, 'clip') || Reflect.has(key, 'border')) {
-            this.children.forEach(v => v.needUpdate = true);
+        if (dispose) {
+          el.dispose();
         }
 
-        super.attr(key, value);
-
-        return this;
+        this.markDirty();
+      }
     }
 
-    async build(ctx: CanvasRenderingContext2D){
-        await super.build(ctx);
+    return this;
+  }
 
-        if(this.style.clip){
-            buildPath(
-                ctx,
-                this.style.border / 2,
-                this.style.border / 2,
-                this.width - this.style.border * 2,
-                this.height - this.style.border * 2,
-                this.style.borderRadius
-            );
+  public add(el: Canvas2DElement) {
+    if (el) {
+      const parent = el.parent;
+
+      if (parent !== this) {
+        if (parent) {
+          parent.remove(el, false);
         }
+        el.parent = this;
+        el.left = el.top = undefined;
+        el.needUpdate = true;
 
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        el.index = this.children.length;
+        const index = findIndexByBinary(
+          (mid) => el.style.zIndex - this.children[mid].style.zIndex || 1,
+          this.children.length
+        );
+        this.children.splice(index, 0, el);
+        this.markDirty();
+      }
+    }
 
-        if(this.style.clip){
-            ctx.save();
-            ctx.clip();
+    return this;
+  }
+
+  public dispose() {
+    super.dispose();
+
+    this.children.forEach((v) => {
+      v.parent = undefined;
+      v.dispose();
+    });
+    this.children.length = 0;
+  }
+
+  /**
+   * 查找元素
+   */
+  public find(id: string | number): Nullable<Canvas2DElement> {
+    if (id === this.id) {
+      return this;
+    }
+
+    for (const el of this.children) {
+      if (el instanceof Canvas2DContainer) {
+        const res = el.find(id);
+        if (res) {
+          return res;
         }
-
-        return this._renderChildren(ctx);
+      } else if (el.id === id) {
+        return el;
+      }
     }
 
-    remove(el: Canvas2DElement, dispose: boolean = true){
-        if(el) {
-            const i = this.children.findIndex(v => v === el);
-            if(i >= 0){
-                el.parent = null;
-                this.children.splice(i, 1);
+    return null;
+  }
 
-                if(dispose) {
-                    el.dispose();
-                }
+  public async draw(ctx: CanvasRenderingContext2D) {
+    await super.draw(ctx);
 
-                this.markDirty();
-            }
-        }
-
-        return this;
+    // 不显示/透明度为0/缩放为0, 子元素一定不会显示
+    if (!(this.isVisible && this.style.opacity && this.style.scale[0] && this.style.scale[1])) {
+      return ctx.restore();
     }
 
-    add(el: Canvas2DElement){
-        if(el) {
-            const parent = el.parent || el.layer;
+    if (this.style.clip) {
+      if (this.width <= 0 || this.height <= 0) {
+        return ctx.restore();
+      }
 
-            if(parent !== this) {
-                if(parent){
-                    parent.remove(el, false);
-                }
-                el.parent = this;
-                el.left = el.top = null;
-                el.needUpdate = true;
-
-                el.index = this.children.length;
-                const index = findIndexByBinary(
-                    mid => el.style.zIndex - this.children[mid].style.zIndex || 1,
-                    this.children.length
-                );
-                this.children.splice(index, 0, el);
-                this.markDirty();
-            }
-        }
-
-        return this;
+      ctx.save();
+      buildPath(
+        ctx,
+        this.style.border / 2,
+        this.style.border / 2,
+        this.width - this.style.border * 2,
+        this.height - this.style.border * 2,
+        this.style.borderRadius
+      );
+      ctx.clip();
     }
 
-    dispose(){
-        super.dispose();
+    await this._renderChildren(ctx);
+  }
 
-        this.children.forEach(v => {
-            v.parent = null;
-            v.dispose();
-        });
-        this.children.length = 0;
-    }
+  protected afterBuild(ctx: CanvasRenderingContext2D) {
+    // 容器暂时不重置ctx
+    return ctx;
+  }
 
-    setTransform(ctx: CanvasRenderingContext2D){
-        super.setTransform(ctx);
-        ctx.translate(-this._start.x, -this._start.y);
-    }
-
-    async buildCached(){
-        let maxRect = null;
-        if(this.style.clip) {
-            maxRect = new BoundingRect(0, 0, this.width, this.height);
+  private _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
+    return new Promise((resolve) => {
+      const _render = async (i: number) => {
+        const node = this.children[i++];
+        if (node) {
+          await node.draw(ctx);
+          _render(i);
         } else {
-            const invert = this.transform.invert();
-            maxRect = (await this._getMaxRect()).transform(invert);
+          if (this.style.clip) {
+            ctx.restore();
+          }
+
+          ctx.restore();
+          resolve();
         }
+      };
 
-        this._start.x = -maxRect.x;
-        this._start.y = -maxRect.y;
-
-        return super.buildCached(maxRect.w, maxRect.h, this._start);
-    }
-
-    getTarget(ctx: CanvasRenderingContext2D, x: number, y: number): false | Canvas2DElement {
-        for(let i=this.children.length - 1; i>=0; i--){
-            const traget = this.children[i].getTarget(ctx, x, y);
-
-            if(traget) {
-                return traget;
-            }
-        }
-
-        return this._contain(ctx, x, y) ? this : false;
-    }
-
-    protected _renderChildren(ctx: CanvasRenderingContext2D): Promise<void> {
-        return new Promise(resolve => {
-            const _render = async (i: number) => {
-                const node = this.children[i++];
-                if(node){
-                    ctx.translate(this._start.x, this._start.y);
-                    await node.draw(ctx);
-                    _render(i);
-                } else {
-                    if(this.style.clip){
-                        ctx.restore();
-                    }
-                    resolve();
-                }
-            }
-
-            _render(0);
-        });
-    }
-
-    async update() {
-        await super.update();
-
-        if(this.needUpdate) {
-            let isStaic = this.isStatic;
-            let el:Container = this;
-            if(!isStaic) {
-                el = this.getParent((parent: Container) => parent);
-                isStaic = !!el;
-            }
-
-            if(isStaic && el._cached) {
-                this._updateChildren();
-            }
-        }
-    }
-
-    private _updateChildren() {
-        this.children.forEach(v => {
-            v.beforeUpdate();
-
-            v.needUpdate = true;
-            v.getBoundingRect().then(() => {
-                v.afterUpdate();
-
-                if(v.isPaint()) {
-                    v.beforeBuild();
-                    v.afterBuild();
-                }
-            });
-        })
-    }
-
-    private async _getMaxRect() {
-        const rect = (await this.getBoundingRect()).clone();
-        for(const v of this.children) {
-            const other =  await (v instanceof Container ?  v._getMaxRect() :  v.getBoundingRect());
-            rect.extend(other);
-        }
-
-        return rect;
-    }
+      _render(0);
+    });
+  }
 }

@@ -2,469 +2,335 @@
  * 节点基类
  * 各尺寸尽可能为偶数
  */
-
-import { Matrix } from "../lib/matrix";
-import { Layer } from "../layer";
-import { Container } from "./container";
-import { BoundingRect } from "../core/bounding_rect";
-import { Style, Istyle } from "../core/style";
-import { parseSize } from "../core/dom";
-import { Canvas2DAnimation } from "../animation/animation";
-import { EventFul, IGuiEvent, EventType } from "../core/event";
-import { createId, removeId } from "../tool/util";
-import { buildPath } from "../tool/paint";
-import { Vector2 } from "../lib/vector";
+import Matrix from '../lib/matrix';
+import Canvas2DContainer from './container';
+import BoundingRect from '../core/boundingRect';
+import { Style, IStyle } from '../core/style';
+import { createId, parseSize, removeId } from '../tool/util';
+import { buildPath } from '../tool/paint';
+import Canvas2dRenderer from '../renderer';
 import { devicePixelRatio } from '../config';
 
-export class Canvas2DElement {
-    readonly type: string = 'element';
+export default class Canvas2DElement {
+  public readonly type: string = 'element';
 
-    index: number = 0; // 在父容器内部的添加顺序
-    parent?: Container;
-    layer?: Layer;
+  public index: number = 0; // 在父容器内部的添加顺序
+  public parent?: Canvas2DContainer | Canvas2dRenderer;
 
-    transform = new Matrix();
-    rect?: BoundingRect;
-    events = new EventFul();
+  public transform = new Matrix();
+  public rect = new BoundingRect();
 
-    isVisible: boolean = true; // 是否可见
-    style: Style = new Style();
-    origin: number[] = [0, 0]; // update时计算出的变换中心
-    width: number = 0; // 通过calcSize计算出的width
-    height: number = 0; // 通过calcSize计算出的height
-    left?: number; // 存在时覆盖style.left设置
-    top?: number;// 存在时覆盖style.top设置
+  public style = new Style();
+  public origin: number[] = [0, 0]; // update时计算出的变换中心
+  public width: number = 0; // 通过calcSize计算出的width
+  public height: number = 0; // 通过calcSize计算出的height
+  public left?: number; // 存在时覆盖style.left设置
+  public top?: number; // 存在时覆盖style.top设置
 
-    _cached?: HTMLCanvasElement; // 缓存节点
+  protected _needUpdate: boolean = true; // 是否需要执行update
+  private _isVisible: boolean = true; // 是否可见
+  private _hadCalc: boolean = false; // 是否已计算过尺寸
 
-    protected _needUpdate: boolean = true; // 是否需要执行update
-    private _hadCalc: boolean = false;
+  private _parentWidth: number = 0;
+  private _parentHeight: number = 0;
 
-    private _animation?: Canvas2DAnimation;
-    private _parentWidth: number = 0;
-    private _parentHeight: number = 0;
+  private _dirty: boolean = true;
 
-    private _ignore: boolean = true; // 最近一次绘制是否忽略了此节点的绘制
-    private _dirty: boolean = true;
-    private _checkedPoint: Map<string, boolean> = new Map(); // 已检测过是否包含的点及其结果
+  public constructor(public id: string | number) {
+    this.id = createId(id);
+  }
 
-    constructor(public id: string | number, public isStatic: boolean = false) {
-        this.id = createId(id);
+  public get needUpdate() {
+    return this._needUpdate;
+  }
+
+  public set needUpdate(needUpdate: boolean) {
+    if (this._needUpdate !== needUpdate) {
+      this._needUpdate = needUpdate;
+      this.updateStackParent();
+    }
+  }
+
+  public get isVisible() {
+    return this._isVisible;
+  }
+
+  public set isVisible(val: boolean) {
+    if (this._isVisible !== val) {
+      this._isVisible = val;
+      this.updateStackParent();
+      this.markDirty();
+    }
+  }
+
+  public getSize(key: 'width' | 'height') {
+    return this[key] / devicePixelRatio();
+  }
+
+  public dispose() {
+    if (this.parent) {
+      this.parent.remove(this, false);
     }
 
-    get needUpdate() {
-        return this._needUpdate;
+    this.style.dispose();
+    this.parent = undefined;
+
+    removeId(this.id);
+  }
+
+  public async draw(ctx: CanvasRenderingContext2D) {
+    this.beforeUpdate();
+    await this.getBoundingRect();
+    this.afterUpdate();
+
+    if (this.isPaint()) {
+      this.beforeBuild(ctx);
+      await this.build(ctx);
+      this.afterBuild(ctx);
+    }
+  }
+
+  /**
+   * 设置节点样式
+   */
+  public attr(key: string | IStyle, value?: unknown) {
+    if (typeof key === 'string') {
+      key = { [key]: value };
     }
 
-    set needUpdate(needUpdate: boolean) {
-        this._needUpdate = needUpdate;
+    let isEqual: boolean = true;
+    for (const [k, v] of Object.entries(key)) {
+      if (!this.style.equal(k, v)) {
+        isEqual = false;
+        break;
+      }
     }
 
-    get animation() {
-        return this._animation;
+    if (!isEqual) {
+      if (this.style.set(key, value)) {
+        this.needUpdate = true;
+      }
+
+      this.markDirty();
     }
 
-    set animation(animation: Canvas2DAnimation) {
-        if (animation !== this._animation) {
-            if (this._animation) {
-                this._animation.el.delete(this);
-            }
+    return this;
+  }
 
-            this._animation = animation;
-            animation && animation.addElement(this);
-        }
+  /**
+   * 标记节点所在的层需要重绘
+   */
+  public markDirty() {
+    if (!this._dirty) {
+      this._dirty = true;
+      this.parent?.markDirty();
+    }
+  }
+
+  /**
+   * 获取父级尺寸
+   */
+  public getParentSize(key: 'width' | 'height') {
+    if (key === 'width') {
+      return this._parentWidth;
+    } else if (key === 'height') {
+      return this._parentHeight;
     }
 
-    getSize(key: 'width' | 'height') {
-        return this[key] / devicePixelRatio;
+    return 0;
+  }
+
+  // ========================钩子函数
+  /**
+   * 计算节点宽高
+   */
+  public async calcSize() {
+    this.width = parseSize(this.style.width, this._parentWidth);
+    this.height = parseSize(this.style.height, this._parentHeight);
+
+    this._hadCalc = true;
+  }
+
+  /**
+   * 获取节点AABB类包围盒
+   */
+  protected async getBoundingRect() {
+    if (this._needUpdate) {
+      await this.update();
+
+      this.rect = new BoundingRect(0, 0, this.width, this.height).transform(this.transform);
+
+      this._needUpdate = false;
     }
 
-    dispose() {
-        if (this.layer) {
-            this.layer.remove(this, false);
-        }
+    return this.rect;
+  }
 
-        if (this.parent) {
-            this.parent.remove(this, false);
-        }
+  protected beforeUpdate() {
+    //
+  }
 
-        this.events.dispose();
-        this.style.dispose();
-        if (this._animation) {
-            this._animation.el.delete(this);
-        }
+  protected async update() {
+    this._parentWidth = this._getBaseSize('width');
+    this._parentHeight = this._getBaseSize('height');
 
-        this._cached
-            = this._animation
-            = this.layer
-            = this.parent
-            = null;
-
-        removeId(this.id);
+    if (!this._hadCalc) {
+      await this.calcSize();
     }
 
-    async draw(ctx: CanvasRenderingContext2D) {
-        this.beforeUpdate();
-        await this.getBoundingRect();
-        this.afterUpdate();
-
-        const isPaint = this.isPaint();
-        if (isPaint) {
-            this.beforeBuild();
-
-            if (!this.isStatic) {
-                this._cached = null;
-            }
-            this._cached = this._cached || await this.buildCached();
-            this.setTransform(ctx);
-            this.style.setAlpha(ctx);
-            ctx.drawImage(this._cached, 0, 0, this._cached.width, this._cached.height);
-
-            if (!this.isStatic) {
-                this._cached = null;
-            }
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-            this.afterBuild();
-        }
-
-        return isPaint;
+    this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
+    if (this.style.border < 0) {
+      this.style.border = 0;
     }
 
-    /**
-     * 设置节点样式
-     */
-    attr(key: string | Istyle, value?: any) {
-        if (typeof key === 'string') {
-            key = { [key]: value };
-        }
+    this.origin[0] = this.style.origin[0] * this.width;
+    this.origin[1] = this.style.origin[1] * this.height;
 
-        let isEqual: boolean = true;
-        for (const [k, v] of Object.entries(key)) {
-            if (!this.style.equal(k, v)) {
-                isEqual = false;
-                break;
-            }
-        }
+    this.updateTransform();
+  }
 
-        if (!isEqual) {
-            if (this.style.set(key, value)) {
-                this.needUpdate = true;
-            }
+  protected afterUpdate() {
+    this._dirty = this._hadCalc = false;
+  }
 
-            this.markDirty();
-        }
+  protected beforeBuild(ctx: CanvasRenderingContext2D) {
+    ctx.save();
 
-        return this;
+    const { a, b, c, d, e, f } = this.transform;
+    const x = this.style.border / 2; // ctx.stroke() 会以路径做中心为路径着色
+    ctx.setTransform(a, b, c, d, e + x, f + x);
+  }
+
+  protected async build(ctx: CanvasRenderingContext2D) {
+    const border = this.style.border;
+    const width = this.width - border;
+    const height = this.height - border;
+
+    buildPath(ctx, 0, 0, width, height, this.style.borderRadius);
+    this.style.build(ctx);
+    this.style.setAlpha(ctx);
+
+    if (this.style.background) {
+      ctx.fill();
     }
 
-    /**
-     * 获取节点AABB类包围盒
-     */
-    async getBoundingRect() {
-        if (this._needUpdate) {
-            await this.update();
+    if (border && this.style.borderColor) {
+      ctx.stroke();
+    }
+  }
 
-            this.rect = new BoundingRect(0, 0, this.width, this.height)
-                .transform(this.transform);
+  protected afterBuild(ctx: CanvasRenderingContext2D) {
+    ctx.restore();
+  }
 
-            this._needUpdate = false;
-        }
+  // 更新变换矩阵
+  protected updateTransform() {
+    const style = this.style;
 
-        return this.rect;
-    };
-
-    /**
-     * 标记节点所在的层需要重绘
-     */
-    markDirty() {
-        if (!this._dirty) {
-            this._dirty = true;
-            if (this.parent) {
-                this.parent.markDirty();
-            }
-            if (this.layer) {
-                this.layer.dirty = true;
-            }
-        }
+    let x = this.left;
+    let y = this.top;
+    if (x == null) {
+      if (style.left != null) {
+        x = parseSize(style.left, this._parentWidth);
+      } else if (style.right != null) {
+        x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
+      } else {
+        // x方向没有任何设置, 默认居中
+        x = parseSize('50%', this._parentWidth) - this.width / 2;
+      }
     }
 
-    /**
-     * 触发事件
-     * @param type 事件类型
-     */
-    notifyEvent(type: EventType, event: Event, guiEvent: IGuiEvent) {
-        let skip = this.events.notify(type, event, guiEvent, this);
-        skip = skip || ['change', 'input', 'foucs', 'blur', 'scroll'].includes(type);
-
-        if (this.parent && !skip) {
-            this.parent.notifyEvent(type, event, guiEvent);
-        }
+    if (y == null) {
+      if (style.top != null) {
+        y = parseSize(style.top, this._parentHeight);
+      } else if (style.bottom != null) {
+        y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
+      } else {
+        // y方向没有任何设置, 默认居中
+        y = parseSize('50%', this._parentHeight) - this.height / 2;
+      }
     }
 
-    // ========================钩子函数
-    beforeUpdate() {
-        this._ignore = true;
+    this.transform
+      .toUnit()
+      .translate(-this.origin[0], -this.origin[1]) // 变换中心
+      .scale(style.scale) // 缩放
+      .rotate(style.rotation) // 旋转
+      .translate(x + this.origin[0], y + this.origin[1]); // 平移
+
+    // 父节点变换
+    if (this.parent instanceof Canvas2DElement) {
+      const parent = this.parent;
+      this.transform.translate(parent.style.border, parent.style.border).transform(parent.transform);
     }
+  }
+  // =============================================================
 
-    async update() {
-        this._parentWidth = this._getBaseSize('width');
-        this._parentHeight = this._getBaseSize('height');
-
-        if (!(this.isStatic && this._cached)) {
-            if (!this._hadCalc) {
-                await this.calcSize();
-            }
-
-            this.style.border = Math.min(this.style.border, this.width / 2, this.height / 2);
-            if (this.style.border < 0) {
-                this.style.border = 0;
-            }
-
-            this.origin[0] = this.style.origin[0] * this.width;
-            this.origin[1] = this.style.origin[1] * this.height;
-        }
-
-        this.updateTransform();
-
-        this._checkedPoint.clear();
+  protected updateStackParent() {
+    // 子元素包围盒更新会影响根据父元素包围盒
+    const parent = this.parent;
+    if (this._needUpdate && parent instanceof Canvas2DContainer && parent.type !== 'container') {
+      parent.needUpdate = true;
     }
+  }
 
-    afterUpdate() {
-        this._dirty = this._hadCalc = false;
+  // ====================================================================================获取父节点
+  protected getParent(filter: (P: NonNullable<Canvas2DElement['parent']>) => boolean) {
+    let parent = this.parent;
+    while (parent) {
+      if (filter(parent)) {
+        return parent;
+      }
+
+      parent = parent instanceof Canvas2DContainer ? parent.parent : undefined;
     }
+  }
 
-    beforeBuild() { }
+  protected getContainerParent(filter: (P: Canvas2DContainer) => boolean) {
+    return this.getParent((p) => p instanceof Canvas2DContainer && filter(p)) as Canvas2DContainer | undefined;
+  }
 
-    async build(ctx: CanvasRenderingContext2D) {
-        const border = this.style.border;
-        let width = this.width - border;
-        let height = this.height - border;
+  protected getRenderer() {
+    return this.getParent((p) => p instanceof Canvas2dRenderer) as Canvas2dRenderer | undefined;
+  }
+  // =======================================================================================
 
-        buildPath(ctx, 0, 0, width, height, this.style.borderRadius);
-        await this.style.build(ctx, width, height);
-
-        if (this.style.background) {
-            ctx.fill();
-        }
-
-        if (border && this.style.borderColor) {
-            ctx.stroke();
-        }
-    }
-
-    afterBuild() {
-        this._ignore = false;
-    }
-
-    /**
-     * 计算节点宽高
-     */
-    calcSize() {
-        this.width = parseSize(this.style.width, this._parentWidth);
-        this.height = parseSize(this.style.height, this._parentHeight);
-
-        this._hadCalc = true;
-    }
-
-    // 更新变换矩阵
-    updateTransform() {
-        const style = this.style;
-
-        let x: number = this.left, y: number = this.top;
-        if (x == null) {
-            if (style.left != null) {
-                x = parseSize(style.left, this._parentWidth);
-            } else if (style.right != null) {
-                x = this._parentWidth - parseSize(style.right, this._parentWidth) - this.width;
-            } else { // x方向没有任何设置, 默认居中
-                x = parseSize('50%', this._parentWidth) - this.width / 2;
-            }
-        }
-
-        if (y == null) {
-            if (style.top != null) {
-                y = parseSize(style.top, this._parentHeight);
-            } else if (style.bottom != null) {
-                y = this._parentHeight - parseSize(style.bottom, this._parentHeight) - this.height;
-            } else {// y方向没有任何设置, 默认居中
-                y = parseSize('50%', this._parentHeight) - this.height / 2;
-            }
-        }
-
-        this.transform
-            .toUnit()
-            .translate(-this.origin[0], -this.origin[1]) // 变换中心
-            .scale(style.scale) // 缩放
-            .rotate(style.rotation) // 旋转
-            .translate(x + this.origin[0], y + this.origin[1]); // 平移
-
-        // 父节点变换
-        if (this.parent) {
-            const parent = this.parent;
-            this.transform
-                .translate(parent.style.border, parent.style.border)
-                .transform(parent.transform);
-        }
-    }
-    // =============================================================
-
-    /**
-     * 缓存绘制
-     */
-    async buildCached(
-        width: number = this.width,
-        height: number = this.height,
-        start: Vector2 = new Vector2()
+  // 是否需要绘制
+  private isPaint() {
+    if (
+      this.isVisible &&
+      this.style.opacity &&
+      this.style.scale[0] &&
+      this.style.scale[1] &&
+      this.width > 0 &&
+      this.height > 0
     ) {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+      // 祖先节点可能存在裁剪
+      const clipParent = this.getContainerParent((parent) => parent.style.clip);
+      if (clipParent) {
+        return this.rect.intersect(clipParent.rect);
+      }
 
-        const cachedCtx = canvas.getContext('2d');
-        cachedCtx.translate(this.style.border / 2 + start.x, this.style.border / 2 + start.y);
-        await this.build(cachedCtx);
-
-        return canvas;
+      // 检测是否在画布区域内
+      const renderer = this.getRenderer();
+      return renderer ? this.rect.intersect(0, 0, renderer.width, renderer.height) : false;
     }
 
-    /**
-     * 获取鼠标在哪个元素上
-     */
-    getTarget(ctx: CanvasRenderingContext2D, x: number, y: number) {
-        if (this._contain(ctx, x, y)) {
-            return <Canvas2DElement>this;
-        }
+    return false;
+  }
 
-        return false;
+  // 计算父节点尺寸
+  private _getBaseSize(key: 'width' | 'height') {
+    let base: number = 0;
+    if (this.parent instanceof Canvas2DElement) {
+      base = this.parent[key];
+      if (this.parent.style.border) {
+        base -= this.parent.style.border * 2;
+      }
+    } else if (this.parent instanceof Canvas2dRenderer) {
+      base = this.parent[key];
     }
 
-    /**
-     * 设置画布变换
-     */
-    setTransform(ctx: CanvasRenderingContext2D) {
-        const transform = new Matrix().copy(this.transform);
-        if (this.parent) {
-            transform.transform(this.parent.transform.invert());
-        }
-
-        const { a, b, c, d, e, f } = transform;
-        ctx.transform(a, b, c, d, e, f);
-    }
-
-    /**
-     * 获取父级尺寸
-     */
-    getParentSize(key: 'width' | 'height') {
-        if (key === 'width') {
-            return this._parentWidth;
-        } else if (key === 'height') {
-            return this._parentHeight;
-        }
-
-        return 0;
-    }
-
-    // 是否需要绘制
-    isPaint() {
-        if (
-            this.isVisible
-            && this.style.opacity
-            && this.style.scale[0]
-            && this.style.scale[1]
-            && this.width > 0
-            && this.height > 0
-        ) {
-            const clipParent = this.getParent((parent: Container) => parent.style.clip);
-            if (clipParent) {
-                return this.rect.intersect(clipParent.rect);
-            }
-
-            const parent = this.layer ? this : this.getParent((p: Container) => p.layer);
-
-            return this.rect.intersect(0, 0, parent.getParentSize('width'), parent.getParentSize('height'));
-        }
-
-        return false;
-    }
-
-    /**
-     * 检测一个点是否落在此节点上
-     */
-    protected _contain(ctx: CanvasRenderingContext2D, x: number, y: number) {
-        if (this._ignore) {
-            return false;
-        }
-
-        const pk: string = `${x}_${y}`;
-        if (this._checkedPoint.has(pk)) {
-            return this._checkedPoint.get(pk);
-        }
-
-        if (this.rect && !this.rect.contain(x, y)) {
-            this._checkedPoint.set(pk, false);
-            return false;
-        }
-
-        // =======================================处于裁切路径外的点不在此节点上
-        const clipParent = this.getParent((parent: Container) => parent.style.clip);
-        if (clipParent) {
-            const border = clipParent.style.border;
-
-            ctx.setTransform(clipParent.transform);
-            ctx.translate(border, border);
-            buildPath(
-                ctx, 0, 0,
-                clipParent.width - border * 2,
-                clipParent.height - border * 2,
-                clipParent.style.borderRadius
-            );
-
-            if (!ctx.isPointInPath(x, y)) {
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                this._checkedPoint.set(pk, false);
-
-                return false;
-            }
-        }
-
-        ctx.setTransform(this.transform);
-        this.buildPath(ctx);
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-        const result = ctx.isPointInPath(x, y);
-        this._checkedPoint.set(pk, result);
-
-        return result;
-    }
-
-    protected buildPath(ctx: CanvasRenderingContext2D) {
-        buildPath(ctx, 0, 0, this.width, this.height, this.style.borderRadius);
-    }
-
-    protected getParent(filter: Function) {
-        let parent = this.parent;
-        while (parent) {
-            if (filter(parent)) {
-                return parent;
-            }
-
-            parent = parent.parent;
-        }
-    }
-
-    // 计算父节点尺寸
-    private _getBaseSize(key: 'width' | 'height') {
-        let base: number = 0;
-        if (this.parent) {
-            base = this.parent[key];
-            if (this.parent.style.border) {
-                base -= this.parent.style.border * 2;
-            }
-        } else if (this.layer && this.layer.canvas) {
-            base = this.layer.canvas[key];
-        }
-
-        return Math.max(0, base);
-    }
+    return Math.max(0, base);
+  }
 }
