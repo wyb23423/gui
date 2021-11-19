@@ -15,8 +15,9 @@ export default class Canvas2dRenderer {
 
   private roots: Canvas2DElement[] = [];
 
-  private set = new Set<() => void>();
-  private flag = true; // 保证上一次绘制完成后才开始下一次绘制
+  // 是否处于绘制过程中
+  // 保证上一次绘制完成后才开始下一次绘制
+  private isRendering = false;
 
   public constructor(public canvas?: Canvas) {
     if (canvas) {
@@ -81,21 +82,20 @@ export default class Canvas2dRenderer {
   }
 
   public beforeRender() {
-    this.flag = false;
+    this.isRendering = true;
   }
 
   public render() {
-    if (this.dirty && this.flag) {
+    if (this.dirty && !this.isRendering) {
       this.dirty = false;
 
-      this.set.clear();
-      this.set.add(this._doRender);
-      Promise.resolve().then(() => this.set.forEach((f) => f.call(this)));
+      // 异步绘制
+      Promise.resolve().then(() => this.isRendering || this._doRender());
     }
   }
 
   public afterRender() {
-    this.flag = true;
+    this.isRendering = false;
   }
 
   public markDirty() {
